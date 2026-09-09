@@ -15,12 +15,48 @@
 <a id="json-import--json-导入"></a>
 ## JSON 导入
 
-空白导入弹窗可以使用完整模板：
+在支持 JSON 导入或 JSON 配置编辑器的客户端中，按操作系统复制。也可打开文件并复制其内容：[macOS JSON](../templates/mcp.macos.json) · [Windows JSON](../templates/mcp.windows.json)。
 
-- [macOS JSON](../templates/mcp.macos.json)
-- [Windows JSON](../templates/mcp.windows.json)
+**macOS**
 
-编辑已有 `mcpServers` 时，只加入 `cloudbase_html`，保留其他条目。默认不需要 `env` 或 `cwd`。不要将含 Key 的 credentials.env 粘贴进这个 JSON 编辑器。
+```json
+{
+  "mcpServers": {
+    "cloudbase_html": {
+      "command": "npx",
+      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+    }
+  }
+}
+```
+
+**Windows**
+
+```json
+{
+  "mcpServers": {
+    "cloudbase_html": {
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+    }
+  }
+}
+```
+
+这是完整的 `mcpServers` 配置；编辑已有文件时，只合并 `cloudbase_html` 条目，保留其他连接器。不要再在外面套一层 `mcpServers`，也不要把含 Key 的 credentials.env 粘进 JSON。默认不需要 `env`、`cwd` 或客户端专属字段。
+
+### 各客户端的 JSON 是否一样
+
+本项目为支持 `mcpServers` 的客户端提供同一份最小模板，**不代表所有 Agent 都使用同一种配置文件格式**。例如 [VS Code 官方文档](https://code.visualstudio.com/docs/agent-customization/mcp-servers) 的 `mcp.json` 根字段是 `servers`，不能直接照搬本页外层结构。客户端还可能有自己的 `type`、禁用开关、超时字段或配置作用域；这些都需要按该客户端说明填写。
+
+| 客户端 | 本页 JSON 的使用方式 | 依据与边界 |
+| --- | --- | --- |
+| WorkBuddy | 进入“配置 MCP”的 JSON 编辑器，使用 `mcpServers`、`command`、`args`。 | [官方 MCP 指南](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/MCP-Guide) 给出同结构；用户已在 macOS 通过 beta.2 接入。官方指南另说明用户级 `~/.workbuddy/mcp.json` 与项目级配置。 |
+| 千问办公 | “添加 → 通过 JSON 导入”，粘贴本页对应系统模板。 | 依据用户提供的导入界面及 macOS beta.2 实测；未取得公开的完整官方 schema，不把结论扩展为所有版本兼容。 |
+| QoderWork | “扩展 → 连接器 → 添加 → 粘贴 JSON 配置”，使用本页 STDIO 模板。 | [官方连接器指南](https://docs.qoder.com/qoderwork/connectors) 确认 JSON 导入和本地 STDIO；本项目在该客户端的实际接入仍待验收。 |
+| 豆包工作 | 当前按“新建自定义连接器”的 STDIO 表单填写，不假设存在 JSON 导入。 | 用户截图显示分离的命令与参数字段；尚未确认公开 JSON 导入格式。用下节字段表映射本页 JSON，不编辑未经确认的客户端内部文件。 |
+
+本页示例均为标准 JSON：使用英文双引号，不含注释和尾逗号。表单中的传输类型选 **STDIO**；有额外必填字段时按客户端说明处理，不把远程 HTTP/SSE 示例混进本地启动配置。
 
 <a id="command-forms--命令表单"></a>
 ## 命令表单
@@ -57,9 +93,9 @@ cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.3 serve
 
 | 客户端 | 入口和输入形式 | 已有依据及待验证项 |
 | --- | --- | --- |
-| QoderWork | 打开“连接器”并添加；有 JSON 导入时可优先使用，否则选择 STDIO 表单。注意区分整条命令与分离参数。 | 已读取本机 Mac 版本 0.9.17；当前具体表单和安装包接入仍待实测。 |
-| 豆包工作 | 打开桌面工作区的连接器设置，添加本地 STDIO MCP，按实际界面使用 JSON 或命令表单。 | 已读取本机豆包 Mac 版本 2.27.11；工作区入口、版本对应表单和安装包接入仍待实测。不要改用远程 SSE/HTTP。 |
-| WorkBuddy | “专家·技能·连接器”→“自定义连接器”。截图包括“服务管理→配置 MCP”的 `mcpServers` 编辑器，以及命令和参数分开的 STDIO 表单。 | macOS 5.5.4（发布/下线截图可见）；用户确认自主接入、只读调用、发布和下线通过，更新与重启恢复待验收。 |
+| QoderWork | “扩展 → 连接器 → 添加 → 粘贴 JSON 配置”；也可手填 STDIO，命令框接受完整命令。 | 官方指南确认入口；此前本机参考版本 0.9.17，当前安装包接入仍待实测。 |
+| 豆包工作 | 打开桌面工作区的“新建自定义连接器”，选择 STDIO，分别填写命令与参数；JSON 导入未确认。 | 已读取本机豆包 Mac 版本 2.27.11；工作区入口、版本对应表单和安装包接入仍待实测。不要改用远程 SSE/HTTP。 |
+| WorkBuddy | 截图入口为“专家·技能·连接器”→“自定义连接器”；官方新版指南为“插件→MCP 服务器”。进入“配置 MCP”后使用同一 JSON。截图包括“服务管理→配置 MCP”的 `mcpServers` 编辑器，以及命令和参数分开的 STDIO 表单。 | macOS 5.5.4（发布/下线截图可见）；用户确认自主接入、只读调用、发布和下线通过，更新与重启恢复待验收。 |
 | 千问办公 | “扩展→连接器→添加”。截图包括 JSON 导入和接受完整命令的 STDIO 表单，超时字段明确使用秒。 | 此前参考界面版本为 Mac 1.0.4；用户确认 JSON 导入、只读调用、重复发布保护和明确另建页面通过；本轮精确客户端版本未在截图展示。 |
 
 这是一份接入指南，兼容性结论以实际验证为准。beta.3 的 macOS/Windows 运行时 CI 矩阵与公共 npm 冷启动已通过，结果见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)；Windows 桌面接入、QoderWork 和豆包工作仍待实测。不同版本可能提供不同控件，验证后按实际版本更新本表。

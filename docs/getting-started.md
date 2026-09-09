@@ -45,7 +45,14 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 
 将示例值替换为实际环境信息。文件不包含收件人的用户名或安装路径。可选项 `CLOUDBASE_PUBLIC_BASE_URL`、`CLOUDBASE_REGISTRY_DIR` 见模板和 [.env.example](../.env.example)，普通接入可以留空。登记目录默认位于收件人的用户主目录；设置为 `off` 会关闭列表、下线和恢复功能。
 
-将填好的文件与对应 [客户端配置](clients.md) 一起交付。公共 MCP JSON 不包含 Key；本指南不会自动创建或发送凭据。
+将填好的文件与对应 [客户端 JSON](clients.md#json-import--json-导入) 一起交付。两份材料职责不同：
+
+| 文件/配置 | 谁准备、放在哪里 | 是否含 Key |
+| --- | --- | --- |
+| `credentials.env` | 管理员填好，收件人放到下述固定用户目录。 | 是，私下交付。 |
+| MCP JSON | 使用本项目模板，粘到桌面 Agent 的导入或配置编辑器。 | 否，只说明启动哪个程序。 |
+
+尚未取得 Key 时按 [控制台获取步骤](#get-cloudbase-api-key) 操作；已拿到完整文件的收件人直接继续放置。本指南不会自动创建或发送凭据。
 
 <a id="for-the-recipient"></a>
 ### 收件人如何放置
@@ -92,15 +99,31 @@ Agent 或用户可在 macOS 终端执行下列一次性命令；它只创建缺�
 | 2. 准备环境 | 参考 [创建环境](https://docs.cloudbase.net/quick-start/create-env)。优先复用合适环境；新建前核对服务条款、服务角色授权、地域和套餐。 | 初始化完成，已选中目标环境。 |
 | 3. 记录环境信息 | 在环境信息或设置中复制环境 ID（EnvId）和地域代码。使用 ID 而非显示名称，地域不能直接照搬示例。 | 两个值属于同一目标环境。 |
 | 4. 检查静态托管 | 打开该环境的“静态网站托管”，按需要核对并完成开通；已有 HTML 使用“文件管理”流程，见 [托管指南](https://docs.cloudbase.net/hosting/quick-start)。 | 静态托管文件管理可用，稍后由 MCP 检查在线状态。 |
-| 5. 获取 Key | 在同一环境的“环境设置 / API Key 管理（API Key 配置）”中复用有效管理端 Key，或创建有明确用途和有效期的 `api_key`，将完整值填入配置文件。 | 拿到完整 Key，而非名称、ID 或列表中的脱敏值。 |
+| 5. 获取 Key | 在同一环境的“环境管理 → API Key 配置”中创建服务端 Key，详见下方步骤。 | 拿到完整 Key，而非名称、ID 或列表中的脱敏值。 |
 
 环境所有者在控制台完成登录、身份验证、服务授权、资源开通、套餐支付确认及 Key 创建。Agent 可解释步骤并继续本地检查，但不能仅因“接入”请求就代下单、开通资源或创建凭据。云服务费用、试用和配额以当前账户及套餐为准，工具采用 MIT 不代表云服务免费。
 
-[API Key 文档](https://docs.cloudbase.net/api-reference/manager/node/login-config#createapikey) 区分管理端 `api_key` 和前端匿名 `publish_key`；完整管理端 Key 在创建时返回。如果只有脱敏值且没有备份，请环境所有者补发，不删除其他服务正在使用的 Key。[官方 MCP 认证说明](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) 介绍了用环境 Key 换取临时凭据的方式。
+<a id="get-cloudbase-api-key"></a>
+### 在控制台获取服务端 API Key
 
-**凭据类型必须正确：**本 MCP 的 `CLOUDBASE_API_KEY` 接收管理端环境 Key，不能用 Publishable Key、Key ID、CAM 密钥对或 CloudBase CLI 登录态替代。其权限大于本工具暴露的六项能力；保存在私密文件中，不放入前端 HTML 或仓库。
+以下步骤面向环境管理员。界面名称按 2026-09-09 的控制台截图核对；后续版本如有调整，在当前环境中查找“API Key 配置”。只领取配置文件的使用者无需完成这些步骤。尚未准备环境或静态托管时，先完成 [从零准备 CloudBase](#new-to-cloudbase)。
 
-你可以自行填好文件，只把路径告诉 Agent，无需提供控制台密码。控制台入口不可用时由环境所有者检查权限，不通过切换环境绕过问题。
+1. 打开 [CloudBase 控制台](https://tcb.cloud.tencent.com/dev)，在顶部选择要发布网页的环境。记录该环境的 **环境 ID** 和 **地域代码**，稍后分别填入 `CLOUDBASE_ENV_ID`、`CLOUDBASE_REGION`。地域使用 `ap-shanghai` 这样的代码，按实际环境填写，不照搬示例。
+2. 点击左下角 **环境管理**，在中间菜单选择 **API Key 配置**。
+3. 页面上方是 **客户端 Publishable Key**；本工具使用下方的 **服务端 API Key** 区域，点击其中的 **创建 API Key**。
+4. 在弹窗中填写便于识别的名称，例如 `html-sharing`，按使用安排选择 **过期时间**，然后点击 **创建**。名称只是标识，不是要填进配置的凭据。
+5. 在创建结果中复制**完整 Key 值**，立即保存到 `credentials.env` 的 `CLOUDBASE_API_KEY=` 后面。保留整段字符串，不加 `Bearer `，不填 Key ID、名称或列表里的脱敏值。完整 Key 仅在创建时返回，参见 [官方 API Key 说明](https://docs.cloudbase.net/api-reference/manager/node/login-config#createapikey)。
+6. 核对三个值属于同一环境，保存为 UTF-8 纯文本的 `credentials.env`。管理员可整份私下交付；收件人按 [固定位置](#for-the-recipient) 放好，再添加 MCP。
+
+```dotenv
+CLOUDBASE_ENV_ID=your-env-id
+CLOUDBASE_REGION=your-region
+CLOUDBASE_API_KEY=your-full-environment-api-key
+```
+
+上面全部为占位值。若创建后只剩脱敏列表、完整值已丢失，需要管理员重新创建并更新配置；已有有效的完整 Key 可以继续复用，不删除其他服务正在使用的 Key。Key 到期或更换后，更新收件人的文件并重载 MCP，再用 `hosting_status` 检查。
+
+此 Key 是管理端环境凭据，权限范围大于本工具的六项能力；保持在私密配置文件中，不放入发布的 HTML、公开 MCP JSON 或 Git 仓库。它与 Publishable Key、CAM SecretId/SecretKey、CloudBase CLI 登录态不同。[官方 MCP 认证说明](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) 介绍了环境 Key 换取临时凭据的机制；本项目使用上面的 `credentials.env` 格式，不照搬官方 MCP 的启动配置。
 
 **连通检查不要求自定义域名。**初次接入可不设置 `CLOUDBASE_PUBLIC_BASE_URL`。默认域名限制见 [首次使用](#6-first-use)，绑定自定义域名是单独的配置决定，不需要为了完成接入上传控制台样例。
 
@@ -111,7 +134,41 @@ Agent 或用户可在 macOS 终端执行下列一次性命令；它只创建缺�
 
 按 [桌面客户端接入](clients.md) 配置 QoderWork、豆包工作、WorkBuddy 或千问办公。指南提供 macOS/Windows 的完整 JSON、整条命令及分离参数形式。保留已有 MCP 条目，选择 **STDIO**，服务名称填 `cloudbase_html`；采用配置文件时，环境变量栏留空。
 
-让 Agent 帮忙接入时，可以复制：
+### 手工配置：直接复制 JSON
+
+选择“通过 JSON 导入”或“配置 MCP”的 JSON 编辑器，按运行 MCP 的电脑系统复制下列内容。已有配置时只合并 `mcpServers.cloudbase_html` 条目。`credentials.env` 事先放好后，JSON 中不需要 `env`、Key 或用户名路径。
+
+**macOS** · [同内容文件](../templates/mcp.macos.json)
+
+```json
+{
+  "mcpServers": {
+    "cloudbase_html": {
+      "command": "npx",
+      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+    }
+  }
+}
+```
+
+**Windows** · [同内容文件](../templates/mcp.windows.json)
+
+```json
+{
+  "mcpServers": {
+    "cloudbase_html": {
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+    }
+  }
+}
+```
+
+WorkBuddy 和千问办公的 JSON 接入已有 beta.2 实测依据，QoderWork 官方说明提供 JSON 导入入口；豆包工作按已确认的 STDIO 表单分别填 `command` 与 `args`。具体入口、可选字段和格式差异见 [客户端指南](clients.md#json-import--json-导入)。不要把整段 JSON 当作终端命令。
+
+### 让 Agent 帮忙接入
+
+可以复制：
 
 > 阅读 https://github.com/zyfasos/cloudbase-html-mcp/blob/main/docs/getting-started.md ，帮我接入 cloudbase_html MCP。复用已有 Node 和管理员提供的完整 credentials.env，帮助放到固定位置，不让我拆分或重填 Key。使用对应系统和客户端的固定版本配置，保留其他连接器，完成 hosting_status 与 list_html 只读验证，不发布页面。如果指定 npm 版本未发布，明确说明并使用我提供的本地安装包或源码，不另装其他包。
 

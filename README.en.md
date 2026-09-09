@@ -4,6 +4,10 @@
 
 A local STDIO MCP server that lets your desktop AI agent publish a designated HTML file to your CloudBase environment, update the same URL, take a site offline and restore it from a local file.
 
+The motivation is simple: an agent-generated report, demo or interactive page should be easy to share and keep updating through one link. HTML preserves editable source for the agent and a browser view for the reader.
+
+[CloudBase](https://cloudbase.net/) is Tencent Cloud's application development platform. This tool uses its static hosting and environment authentication for one focused workflow: publishing a single local HTML file to your own environment. Cloud service charges are separate from the MIT-licensed tool. See the [Chinese positioning notes](PROJECT.md#positioning-and-related-tools) for related projects and scope.
+
 **0.4.0-beta.3 is a testing release.** It fixes shared-file site binding and recovery guidance, returns directory share URLs, and accepts legacy `index.html` links. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.3 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
 ## Setup

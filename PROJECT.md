@@ -2,7 +2,23 @@
 
 ## 目标
 
-面向使用 AI 生成单页 HTML 的个人开发者：指定本地产物即可发布、更新同一 URL、查看本地已知站点、下线删除云端内容，并从指定文件恢复原站点。
+面向使用桌面 Agent 生成单页 HTML 的个人与小团队：指定本地产物即可发布、更新同一 URL、查看本地已知站点、下线删除云端内容，并从指定文件恢复原站点。
+
+<a id="positioning-and-related-tools"></a>
+## 定位与相近工具
+
+项目起点是一个具体的交付场景：Agent 生成报告、演示或轻量交互页面后，使用者希望直接分享链接，修改后继续迭代同一地址。HTML 在这里承载版式、图表与交互，也保留可继续修改的源码；这是一项产品取舍，不把“HTML 已取代 Markdown”或“分享已成为所有人的刚需”当作未经验证的事实。
+
+2026-09-09 核对公开项目说明后，已经存在相近方案，不能声称 GitHub 上没有单 HTML 发布工具。下表只对照公开文档中的能力，未进行这些项目的安装、性能或服务质量评测。
+
+| 项目 | 公开说明中的能力与交付形态 |
+| --- | --- |
+| [htmldrop](https://github.com/vin-spiegel/htmldrop) | 提供发布 API 和 MCP，可把 HTML 等产物转换为分享链接，并提供自托管说明。 |
+| [agent2web](https://github.com/raveli/agent2web) | 通过远程 MCP 发布单页 HTML 或多文件站点，运行于 Cloudflare Workers、D1、R2，并提供版本及管理界面。 |
+| [tinyhost](https://github.com/allenai/tinyhost) | 以命令行将单页放到 S3 并提供限时链接；项目动机明确包括分享由 AI 生成的小页面。 |
+| [CloudBase 官方 MCP](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) | 覆盖静态托管、存储、数据库、云函数等更广的云开发能力。 |
+
+本项目聚焦中文使用说明、国内桌面 Agent 手工接入、管理员整份交付配置，以及用户自己的 CloudBase 环境。它将“指定本地单 HTML → 发布 → 同链接更新 → 下线/恢复”收敛为六工具，不需要部署额外的远程服务或业务数据库。这里的轻量指职责和接入范围集中，不是对安装体积、性能或所有场景易用性的比较结论。
 
 ## v0.4 beta
 

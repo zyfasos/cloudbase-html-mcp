@@ -4,7 +4,7 @@
 
 让桌面 AI Agent 将本地 HTML 发布到你自己的 CloudBase 环境，持续更新同一 URL，也能下线并从本地文件恢复。
 
-**v0.4.0-beta.1：公开测试版。** 本地 STDIO MCP · 六工具 · MIT。当前源码已通过 macOS/Windows CI，相关修复尚未发布到 npm；桌面客户端实测仍待完成。见 [验证状态](PROJECT.md#v04-验证与发布安排)。
+**v0.4.0-beta.2：公开测试版。** 本地 STDIO MCP · 六工具 · MIT。本版包含已通过 macOS/Windows CI 的修复；桌面客户端实测仍待完成。见 [验证状态](PROJECT.md#v04-验证与发布安排)。
 
 ## 快速接入
 
@@ -18,7 +18,7 @@
 macOS 使用以下固定版本命令：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.1 serve
+npx -y cloudbase-html-mcp@0.4.0-beta.2 serve
 ```
 
 Windows 使用 [对应模板](templates/mcp.windows.json) 的命令包装。也可使用 [源码或本地安装包](docs/getting-started.md#install-from-source-or-a-local-package)。Node 需要预先可用，npm 包不内置运行时。

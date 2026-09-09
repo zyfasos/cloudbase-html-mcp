@@ -4,7 +4,7 @@
 
 A local STDIO MCP server that lets your desktop AI agent publish a designated HTML file to your CloudBase environment, update the same URL, take a site offline and restore it from a local file.
 
-**0.4.0-beta.1 is a public beta for testing.** Current source passes macOS/Windows CI; these fixes are not yet in the npm beta. Desktop-client acceptance remains pending; see [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
+**0.4.0-beta.2 is a public beta for testing.** This beta includes the fixes verified by macOS/Windows CI. Desktop-client acceptance remains pending; see [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
 ## Setup
 

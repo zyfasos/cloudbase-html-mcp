@@ -1,6 +1,6 @@
 # 桌面客户端接入
 
-本指南说明如何手动添加本地 STDIO MCP。当前 v0.4 为 **0.4.0-beta.1 公开测试版**，客户端兼容性仍待实测。也可按 [快速开始](getting-started.md#install-from-source-or-a-local-package) 使用本地包或已取得的 v0.4 源码。
+本指南说明如何手动添加本地 STDIO MCP。当前 v0.4 为 **0.4.0-beta.2 公开测试版**，客户端兼容性仍待实测。也可按 [快速开始](getting-started.md#install-from-source-or-a-local-package) 使用本地包或已取得的 v0.4 源码。
 
 <a id="common-preparation--公共准备"></a>
 ## 公共准备
@@ -25,26 +25,26 @@
 <a id="command-forms--命令表单"></a>
 ## 命令表单
 
-以下命令固定使用 0.4.0-beta.1，不自动升级到其他版本。
+以下命令固定使用 0.4.0-beta.2，不自动升级到其他版本。
 
 macOS 完整命令：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.1 serve
+npx -y cloudbase-html-mcp@0.4.0-beta.2 serve
 ```
 
 Windows 完整命令：
 
 ```text
-cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.1 serve
+cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.2 serve
 ```
 
 如果界面将命令和参数分开填写：
 
 | 系统 | 命令 | 参数，每项单独填写 |
 | --- | --- | --- |
-| macOS | `npx` | `-y`、`cloudbase-html-mcp@0.4.0-beta.1`、`serve` |
-| Windows | `cmd.exe` | `/d`、`/c`、`npx`、`-y`、`cloudbase-html-mcp@0.4.0-beta.1`、`serve` |
+| macOS | `npx` | `-y`、`cloudbase-html-mcp@0.4.0-beta.2`、`serve` |
+| Windows | `cmd.exe` | `/d`、`/c`、`npx`、`-y`、`cloudbase-html-mcp@0.4.0-beta.2`、`serve` |
 
 服务名称填 `cloudbase_html`，传输类型选 STDIO，环境变量留空。界面明确使用“秒”且覆盖连接或工具调用时，可设置 180 秒；毫秒字段不能直接填 180。没有文档依据时，不自行添加客户端 JSON 超时字段。
 

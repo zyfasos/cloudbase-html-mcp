@@ -53,7 +53,7 @@ From a local checkout, copy this request to your coding agent:
 
 > 阅读本仓库的 docs/getting-started.md，帮我安装并注册 cloudbase_html MCP。优先复用已有安装和仓库外的私人环境文件，完成本地检查和只读连通验证；如果管理员已提供 Key，复用其环境与地域，无需控制台登录；让我在本机终端运行 npm run setup 隐藏输入 Key，不在聊天中收集 Key；缺少客户端或连接信息时集中问我。接入时不要发布页面。
 
-After the source has been pushed to GitHub, you can share this request without supplying a local checkout:
+To set up directly from GitHub without an existing local checkout, share this request:
 
 ```text
 Read https://raw.githubusercontent.com/zyfasos/cloudbase-html-mcp/main/docs/getting-started.md
@@ -82,7 +82,7 @@ A suggested private file location is `.config/cloudbase-html-mcp/credentials.env
 
 ### 4.1 Install and check locally
 
-For a new installation, after the source is available on GitHub:
+For a new installation:
 
 ```sh
 git clone https://github.com/zyfasos/cloudbase-html-mcp.git "$CLOUDBASE_HTML_REPO"
@@ -227,7 +227,7 @@ Once the private file contains the actual environment ID, region and Key, run th
 "$CLOUDBASE_HTML_NODE" "$CLOUDBASE_HTML_REPO/scripts/call.mjs" --config "$CLOUDBASE_HTML_ENV_FILE" hosting_status
 ```
 
-If the result is `CONFIG_REQUIRED`, follow `next_step.required_config` and `next_step.setup_guide`; the local guide works before the repository is published. A credential error requires checking the selected environment, region, Key type/full value and expiry, then reloading the MCP after editing its file. `STATIC_STORE` failures require checking the selected hosting resource; an incomplete response is not proof that you must create one.
+If the result is `CONFIG_REQUIRED`, follow `next_step.required_config` and `next_step.setup_guide`; the guide is also available in your local checkout. A credential error requires checking the selected environment, region, Key type/full value and expiry, then reloading the MCP after editing its file. `STATIC_STORE` failures require checking the selected hosting resource; an incomplete response is not proof that you must create one.
 
 Then list tools from the actual host client and call `hosting_status` there as well, when the client is loaded. The script proves the standalone server works; it does not by itself prove the host loaded its new configuration.
 
@@ -238,6 +238,8 @@ Then list tools from the actual host client and call `hosting_status` there as w
 | Cloud connection verified | `hosting_status` validated credential exchange and static hosting; `uploadPermission` and `publicVerification` remain `NOT_TESTED`. |
 
 Setup is complete when the actual client exposes all six tools and its `hosting_status` call returns `ok: true`. This validates credential exchange and hosting access; upload permission and public page access remain untested.
+
+`hosting_status` reports the configured registry directory and `management.enabled`, but does not read or validate the catalogue. For local site management, confirm `management.enabled: true` and call `list_html` as a separate read-only check; an empty list is valid on first use. Resolve any registry diagnostic before managing sites.
 
 An installing agent should report the installation directory, private file location without its contents, configured client, checks performed, and any pending input or restart. A successful standalone check alone is not a completed client connection.
 
@@ -275,10 +277,12 @@ Interpret the returned status before sharing the URL:
 | Status | Meaning |
 | --- | --- |
 | `PUBLISHED` | Public HTML content matches the uploaded file and does not force a download. |
-| `PUBLISHED_PREVIEW` | Content matches, but the default-domain response indicates a preview restriction; visitors may encounter a platform access notice. |
+| `PUBLISHED_PREVIEW` | Content matches, but the default-domain response indicates a preview restriction, such as an attachment header; browser behavior may vary. |
 | `UPLOADED_NOT_PUBLICLY_VERIFIED` | Storage checks passed; public access has not been verified. |
 
-Follow `next_step` on failure. See [README](../README.md) for pending registrations, conflicts, and domain behavior.
+CloudBase default domains are intended for development and testing and may show an access notice or trigger a download; see the [official domain guide](https://docs.cloudbase.net/service/alias). For direct public sharing, use an HTTPS custom domain already bound to this environment. Set `CLOUDBASE_PUBLIC_BASE_URL` in the private configuration file if needed; the MCP does not create domains or modify routes.
+
+Follow `next_step` on failure: it includes bounded retry guidance and, where appropriate, a tool name with `suggested_args` or missing `required_config`. Query with `get_html` before retrying a conflict or uncertain write; `isError` does not mean that no cloud write occurred. See the [architecture guide (中文)](architecture.md) for registration recovery and domain selection.
 
 ### List, take offline, and restore
 
@@ -300,14 +304,36 @@ After a cloud-success/local-finalization warning, inspect the object and retry t
 
 Reload the MCP after upgrading and expose all six tools in any client allowlist. New publishes stop creating `deployments/` snapshots and no longer return a new `versionKey`. Old local records migrate under the first environment write lock, preserving active/pending IDs and source files; do not downgrade to a v0.2 writer. Back up the private registry directory before upgrading if you need a local migration backup.
 
-Existing snapshots are not deleted automatically. See the [README cleanup procedure](../README.md#storage-and-cleanup) for a default-read-only manifest and an explicitly authorized apply step. Native COS Bucket versioning is separate: enabled, suspended or unconfirmed settings block cleanup; this MCP does not change them.
+Existing snapshots are not deleted automatically. Taking a site offline includes cleanup of its legacy snapshots. To clean only old snapshots while keeping a site online, use the procedure below.
+
+#### Clean legacy snapshots while keeping current HTML
+
+The cleanup script defaults to a read-only manifest. From the checkout, specify the environment and site IDs, then save its JSON output in an existing private directory outside Git. Replace the site ID with `s-` plus 32 lowercase hex digits, and repeat `--site-id` for multiple sites. This example refuses to overwrite an existing manifest:
+
+```sh
+(
+  umask 077
+  set -C
+  node --env-file=/absolute/private/cloudbase-html.env scripts/cleanup-snapshots.mjs --env-id YOUR_ENV_ID --site-id s_REPLACE_WITH_VALID_ID > /absolute/private/cleanup-manifest.json
+)
+```
+
+Continue only if the command exits successfully and the file contains a complete JSON manifest. Inspect its `envId`, `region`, `bucket`, exact object keys, `count` and `bytes`. If the command fails, do not apply the empty or incomplete output; correct the issue and use a new manifest path. The cleanup CLI uses Node's native `--env-file`, so inherited CloudBase environment variables take precedence; use a terminal without conflicting overrides. Unlike the MCP launcher, this command does not replace inherited settings.
+
+Only after explicit approval of the saved manifest, execute:
+
+```sh
+node --env-file=/absolute/private/cloudbase-html.env scripts/cleanup-snapshots.mjs --env-id YOUR_ENV_ID --site-id s_REPLACE_WITH_VALID_ID --apply --manifest /absolute/private/cleanup-manifest.json
+```
+
+Keep the same environment and site ID arguments for execution. Apply requires the local registry to be enabled. Execution checks the environment, Bucket, strict legacy paths and current ETags/sizes, and deletes only manifest objects. Current HTML and snapshots added later are preserved. The script shares the local environment lock. Native COS Bucket versioning is separate: enabled, suspended or unconfirmed settings block destructive cleanup; this MCP does not change them or claim that all storage was reclaimed when cleanup is incomplete.
 
 ## 7. Troubleshooting
 
 | Symptom | Next action |
 | --- | --- |
 | Missing Node or Node below 22 | Obtain a supported runtime through the user's normal setup process, then resolve its absolute path. |
-| Repository empty or source download returns 404 | Use the provided local checkout or wait for source publication; do not scaffold a replacement. |
+| Repository empty or source download returns 404 | Check the repository URL and network access, or use a provided local checkout; do not scaffold a replacement. |
 | No CloudBase environment or Key | Follow [New to CloudBase](#new-to-cloudbase); return after the owner completes console preparation. |
 | Node reports the env file is missing; client cannot start the server | Check the exact absolute path and create/read-check the private file before registering. This occurs before MCP can return `CONFIG_REQUIRED`. |
 | `CONFIG_REQUIRED` | Follow `next_step.required_config` and `setup_guide`; fill only the missing fields in the private file and reload the MCP. |

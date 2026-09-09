@@ -32,6 +32,6 @@
 
 ## 开源与发布
 
-MIT；保留第三方原许可证。源码发布前完成用户本地验收和依赖风险收口。包保持 private，未计划发布 npm。
+源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。包保持 private，未发布 npm。第三方 Agent 从公开仓库全新接入的验收仍待完成。
 
 业务 HTML、私人环境信息、凭据、本地登记和 docs/implementation/ 不进入 Git（包括历史）；实施档案只在本地维护。

@@ -20,7 +20,7 @@
 npm run setup -- --env-id YOUR_ENV_ID --region YOUR_REGION
 ```
 
-也可直接运行 `npm run setup` 逐项填写，或用 `--connection /absolute/private/connection.json` 导入仅含 `envId`、`region` 的连接信息。只读检查通过后保存仓库外私密配置，输出不含 Key 的 JSON/TOML 接入片段；合并到客户端并重载。已有配置默认复用，输入 `edit` 修改；取消或检查失败保留原文件。完整流程见 [本地向导](docs/getting-started.md#2-run-the-local-setup-wizard-recommended)。
+也可直接运行 `npm run setup` 逐项填写，或用 `--connection /absolute/private/connection.json` 导入仅含 `envId`、`region` 的连接信息。只读检查通过后保存仓库外私密配置，输出不含 Key 的 JSON/TOML 接入片段；合并到客户端并重载。已有配置默认复用，输入 `edit` 修改；取消或检查失败保留原文件。完整流程见 [本地向导](docs/getting-started.md#42-run-the-local-setup-wizard-recommended)。
 
 配置路径按实际文件系统解析符号链接，检查、读取和保存使用同一物理目标；指向 Git 仓库的路径会被拒绝，不会将“不存在目录 + `..`”静默改指其他文件。
 

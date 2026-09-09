@@ -20,7 +20,7 @@ Recipients of an administrator-issued API Key do not need a CloudBase login. Aft
 npm run setup -- --env-id YOUR_ENV_ID --region YOUR_REGION
 ```
 
-Use `npm run setup` to enter all fields, or `--connection /absolute/private/connection.json` to import only `envId` and `region`. After a successful read-only check, it saves a private outside-Git file and prints secret-free JSON/TOML entries to merge into your client and reload. Existing files default to reuse; choose `edit` to change them. Cancellation or failed checks preserve the original. See the [local wizard guide](docs/getting-started.md#2-run-the-local-setup-wizard-recommended).
+Use `npm run setup` to enter all fields, or `--connection /absolute/private/connection.json` to import only `envId` and `region`. After a successful read-only check, it saves a private outside-Git file and prints secret-free JSON/TOML entries to merge into your client and reload. Existing files default to reuse; choose `edit` to change them. Cancellation or failed checks preserve the original. See the [local wizard guide](docs/getting-started.md#42-run-the-local-setup-wizard-recommended).
 
 Configuration paths resolve directory symlinks before parent segments; checks, reads and saves use the same physical target. Git locations are rejected, and a missing directory followed by `..` is never silently redirected to another file.
 

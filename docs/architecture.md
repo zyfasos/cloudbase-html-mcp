@@ -1,6 +1,6 @@
 # 架构说明与关键时序
 
-本文描述 v0.3 已实现的结构。人可从图理解流程，Agent 可从职责和契约定位源码；进度由本地实施档案维护。接入见 [快速开始](getting-started.md)，完整对外说明见 [README](../README.md) 与 [中文 README](../README.zh-CN.md)。
+本文描述 v0.3 已实现的结构。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，完整对外说明见 [README](../README.md) 与 [中文 README](../README.zh-CN.md)。
 
 ## 1. 总览
 

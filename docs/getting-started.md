@@ -21,7 +21,7 @@ For agent-assisted setup, reuse information already supplied and the existing `c
 
 ### New to CloudBase
 
-Received an API Key from an administrator? Obtain the matching environment ID and region from them, then skip the console steps and use the [local setup wizard](#2-run-the-local-setup-wizard-recommended).
+Received an API Key from an administrator? Obtain the matching environment ID and region from them, then skip the console steps and use the [local setup wizard](#42-run-the-local-setup-wizard-recommended).
 
 Already have an environment and a private configuration file? Reuse them and continue with [agent-assisted setup](#3-let-your-agent-set-it-up) or [manual installation](#4-install-and-configure). Otherwise, prepare the following in order. Console labels may change; the linked official guides are the reference.
 
@@ -80,7 +80,7 @@ CLOUDBASE_HTML_ENV_FILE="/absolute/private/cloudbase-html.env"
 
 A suggested private file location is `.config/cloudbase-html-mcp/credentials.env` under your home directory. These variables are used by the shell examples; replace paths in the TOML or JSON templates with literal absolute paths.
 
-### 1. Install and check locally
+### 4.1 Install and check locally
 
 For a new installation, after the source is available on GitHub:
 
@@ -100,7 +100,7 @@ npm test
 
 On repeat setup, reuse an installed dependency tree when it matches the lockfile; do not reinstall or upgrade dependencies just to repeat setup. Report relevant audit warnings separately from test results. The final command uses a real STDIO client and needs no CloudBase credentials. It must list exactly `hosting_status`, `publish_html`, `get_html`, `list_html`, `offline_html`, and `online_html`.
 
-### 2. Run the local setup wizard (recommended)
+### 4.2 Run the local setup wizard (recommended)
 
 After installing dependencies, run this **yourself in a local interactive terminal**, from the checkout:
 
@@ -138,11 +138,11 @@ npm run setup -- --config "$CLOUDBASE_HTML_ENV_FILE"
 
 The wizard creates a private directory (0700) and atomically saves a file (0600) on macOS/Linux. Existing directories/files must already be private and owned by you; it reports a permission error instead of changing existing permissions. It rejects Git locations, credential-file symlinks, unrelated dotenv variables, and concurrent/conflicting saves. Directory symlinks are resolved before parent segments so checks, reads, saves and generated startup paths share one physical target. An unresolved missing directory followed by `..`, or a directory-only destination, is rejected instead of selecting a different file. After a process exits during saving, confirm no writer remains before removing a stale `<credentials.env>.lock`. Windows users must manage their account’s filesystem ACLs; POSIX modes are not an ACL guarantee.
 
-Successful output includes **copyable JSON and Codex TOML entries with absolute paths, without the Key**. The generated entry runs `scripts/start.mjs`, which loads the selected file and replaces inherited CloudBase settings, including clearing absent optional settings. It does not modify the client configuration automatically. Merge the appropriate entry, preserving other servers, and reload your client as described in [Register the server](#3-register-the-server-in-your-client). If you used the default location, set `CLOUDBASE_HTML_ENV_FILE` to the path shown by the wizard before using later shell examples. You can skip the manual file-creation alternative below.
+Successful output includes **copyable JSON and Codex TOML entries with absolute paths, without the Key**. The generated entry runs `scripts/start.mjs`, which loads the selected file and replaces inherited CloudBase settings, including clearing absent optional settings. It does not modify the client configuration automatically. Merge the appropriate entry, preserving other servers, and reload your client as described in [Register the server](#44-register-the-server-in-your-client). If you used the default location, set `CLOUDBASE_HTML_ENV_FILE` to the path shown by the wizard before using later shell examples. You can skip the manual file-creation alternative below.
 
 The check confirms credentials and online static hosting. Domain discovery is reported separately; upload permission, public page access, and activation in your actual MCP client remain unverified until their respective checks. `npm run setup -- --help` shows all options.
 
-### Alternative: prepare the private environment file manually
+### 4.3 Alternative: prepare the private environment file manually
 
 Create the parent directory and an empty private file if it does not exist. This POSIX snippet preserves existing files and refuses to overwrite a file created concurrently:
 
@@ -176,7 +176,7 @@ chmod 700 "$(dirname "$CLOUDBASE_HTML_ENV_FILE")"
 chmod 600 "$CLOUDBASE_HTML_ENV_FILE"
 ```
 
-### 3. Register the server in your client
+### 4.4 Register the server in your client
 
 Before registering, confirm the environment file exists and is readable:
 

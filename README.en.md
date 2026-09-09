@@ -4,9 +4,7 @@
 
 A local STDIO MCP server that lets your desktop AI agent publish a designated HTML file to your CloudBase environment, update the same URL, take a site offline and restore it from a local file.
 
-**0.4.0-beta.2 is a public beta for testing.** This beta includes the fixes verified by macOS/Windows CI. Users have confirmed onboarding and publishing in WorkBuddy and Qianwen Office on macOS, plus taking a site offline in WorkBuddy. Same-URL updates and restart/restore acceptance remain pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
-
-The shared-file binding fix and directory share URLs in the current source are not yet included in the published beta.2 package.
+**0.4.0-beta.3 is a testing release.** It fixes shared-file site binding and recovery guidance, returns directory share URLs, and accepts legacy `index.html` links. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.3 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
 ## Setup
 

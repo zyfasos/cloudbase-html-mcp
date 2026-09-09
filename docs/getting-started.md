@@ -6,7 +6,7 @@
 
 **准备 Node.js → 放好完整配置文件 → 在桌面 Agent 中添加 MCP → 验证 → 开始使用。**
 
-当前 v0.4 为 **0.4.0-beta.2 公开测试版**，WorkBuddy、千问办公的 macOS 接入与发布、WorkBuddy 下线已获用户实测确认；更新、恢复及其他客户端仍待验收。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。本版包含已通过 macOS/Windows 四组 CI 的修复；已确认的接入范围见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
+当前 v0.4 为 **0.4.0-beta.3 测试版**，包含共享文件绑定、恢复提示和目录分享地址调整。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。已有四组 CI 和 WorkBuddy/千问办公桌面证据来自 beta.2；beta.3 的本地回归已通过，Windows CI 与桌面复验仍待完成，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
 
 你需要支持本地 STDIO MCP 的桌面客户端，以及已开启静态托管的 CloudBase 环境。管理员可以直接提供下述完整文件；收到文件后，无需 CloudBase 账号登录或重填三个参数。人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
 
@@ -141,7 +141,7 @@ Windows 的配置文件绝对路径不能包含 `..` 路径段；使用默认位
 自行准备配置的用户，可在本机交互式终端运行：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.2 setup
+npx -y cloudbase-html-mcp@0.4.0-beta.3 setup
 ```
 
 向导收集环境、地域及隐藏输入的 Key，只读检查通过后才保存。已有配置默认复用，输入 `edit` 修改；Key 留空则保留原值。取消或失败保留原文件，不自动修改桌面客户端配置。
@@ -179,7 +179,7 @@ v0.4 使用 `npm-shrinkwrap.json`。仍处于 v0.3 的检出不包含新 CLI，�
 收到本地 `.tgz` 时，将引号内的示例替换为实际文件路径，并保留双引号，避免空格被拆成多个参数。Windows 在命令提示符（cmd）中执行。此操作安装程序命令，不写入云端凭据：
 
 ```sh
-npm install --global --ignore-scripts "/absolute/path/cloudbase-html-mcp-0.4.0-beta.2.tgz"
+npm install --global --ignore-scripts "/absolute/path/cloudbase-html-mcp-0.4.0-beta.3.tgz"
 cloudbase-html-mcp --version
 ```
 
@@ -217,7 +217,7 @@ cloudbase-html-mcp --version
 
 持续迭代同一 URL 时复用 `siteId`。`publish_html` 覆盖 `sites/<siteId>/index.html`，不创建云快照；域名映射不变时 URL 不变。`newPage: true` 表示另建页面，不用于更新。
 
-**当前源码默认返回 `/sites/<siteId>/` 分享地址**，云端仍保存 `index.html`；此调整尚未进入 npm beta.2。公网验证直接请求目录地址，不用文件地址的成功结果代替。目录返回错误、内容不符或重定向时不会标记公网验证通过，也不会自动修改托管配置。旧 `/sites/<siteId>/index.html` 链接继续支持查询、更新、下线和恢复，无须重新部署已有文件；升级只改变返回链接的形式，不生成新站点。列表与离线查询也将旧登记链接展示为目录形式，仍不额外访问云端核验。
+**从 beta.3 起默认返回 `/sites/<siteId>/` 分享地址**，云端仍保存 `index.html`。公网验证直接请求目录地址，不用文件地址的成功结果代替。目录返回错误、内容不符或重定向时不会标记公网验证通过，也不会自动修改托管配置。旧 `/sites/<siteId>/index.html` 链接继续支持查询、更新、下线和恢复，无须重新部署已有文件；升级只改变返回链接的形式，不生成新站点。列表与离线查询也将旧登记链接展示为目录形式，仍不额外访问云端核验。
 
 > 更新之前从 `/absolute/path/report.html` 发布的页面。
 
@@ -258,9 +258,9 @@ Agent 的顺序为：
 
 用站点 ID 或已核验 URL，加上本次指定文件调用 `online_html`。要求有本地离线登记，文件存在且云端当前对象不存在；对象意外出现时返回冲突。先完成待处理清理；前次恢复已写入相同内容但结果不确定时，可核验完成。已在线页面按正常流程更新。
 
-**同一文件对应多个站点：**当前源码已修复这一场景，尚未包含在 npm beta.2 中。明确提供 A 的 `siteId` 或 `siteUrl` 时，可用默认绑定到 B 的文件更新或恢复 A；B 的内容、生命周期和默认绑定均不变。之后只按文件路径查询，仍会找到 B；继续管理 A 请保留 A 的 ID/URL。返回的 `pathBinding` 说明文件的默认绑定，顶层 `siteId` 才是本次目标。只有 `newPage` 或完成对应 pending 新建才切换已有默认绑定。
+**同一文件对应多个站点：**beta.3 已修复这一场景。明确提供 A 的 `siteId` 或 `siteUrl` 时，可用默认绑定到 B 的文件更新或恢复 A；B 的内容、生命周期和默认绑定均不变。之后只按文件路径查询，仍会找到 B；继续管理 A 请保留 A 的 ID/URL。返回的 `pathBinding` 说明文件的默认绑定，顶层 `siteId` 才是本次目标。只有 `newPage` 或完成对应 pending 新建才切换已有默认绑定。
 
-如果 beta.2 报 `LOCAL_BINDING_CONFLICT`，不要下线其他站点或直接编辑 `catalog-v2.json`；下线保留路径绑定。可让用户指定一份放在未登记路径的 HTML 副本，再用原站点 ID 恢复，或待修复版发布后升级。
+如果 beta.2 报 `LOCAL_BINDING_CONFLICT`，不要下线其他站点或直接编辑 `catalog-v2.json`；下线保留路径绑定。可让用户指定一份放在未登记路径的 HTML 副本，再用原站点 ID 恢复，或升级到 beta.3 后重试原目标。
 
 恢复前置检查失败时，按具体错误修正：文件缺失或 HTML 无效先处理本地文件；登记锁占用先等待写入结束；凭据/托管错误先修正配置。当前机器没有目标的离线登记时不能自动认领，不将恢复请求改成另建站点。写入结果不确定时，应先查询原目标，再决定是否重试原恢复操作。
 

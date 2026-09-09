@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-html-mcp",
-  "version": "0.4.0-beta.2",
+  "version": "0.4.0-beta.3",
   "license": "MIT",
   "type": "module",
   "description": "Local STDIO MCP for publishing a single HTML file to CloudBase",

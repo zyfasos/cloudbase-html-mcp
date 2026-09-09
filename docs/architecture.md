@@ -1,6 +1,6 @@
 # 架构说明与关键时序
 
-本文描述当前 v0.4 源码的结构；共享文件的显式目标修复和默认目录分享地址尚未进入已发布的 beta.2。发布和桌面实测状态见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，中文首页见 [README](../README.md)，另有 [英文简要介绍](../README.en.md)。
+本文描述 v0.4.0-beta.3 的结构，包含共享文件的显式目标修复、恢复提示分流和默认目录分享地址。发布和桌面实测状态见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，中文首页见 [README](../README.md)，另有 [英文简要介绍](../README.en.md)。
 
 ## 1. 总览
 
@@ -274,4 +274,4 @@ sequenceDiagram
 
 ## 9. 分发边界
 
-包元数据为版本唯一来源；bin 提供稳定入口，白名单限制发布内容，npm-shrinkwrap.json 锁定传递依赖。凭据与目录在用户主目录，不随安装位置移动。测试版本为 0.4.0-beta.2，按 beta 标签分发；客户端模板固定该版本。macOS/Windows Node 22/24 工作流先安装依赖并准备 npm 缓存，再执行离线检查；不含发布或云端凭据。v0.4 已获用户确认的 WorkBuddy、千问办公 macOS 接入与发布、WorkBuddy 下线范围见 [客户端记录](clients.md#acceptance-record--实测记录)。现有 v0.3 实测不替代 v0.4 客户端完整生命周期及 Windows 桌面验收。
+包元数据为版本唯一来源；bin 提供稳定入口，白名单限制发布内容，npm-shrinkwrap.json 锁定传递依赖。凭据与目录在用户主目录，不随安装位置移动。测试版本为 0.4.0-beta.3，按 beta 标签分发；客户端模板固定该版本。macOS/Windows Node 22/24 工作流先安装依赖并准备 npm 缓存，再执行离线检查；不含发布或云端凭据。v0.4 已获用户确认的 WorkBuddy、千问办公 macOS 接入与发布、WorkBuddy 下线范围见 [客户端记录](clients.md#acceptance-record--实测记录)。现有 v0.3 实测不替代 v0.4 客户端完整生命周期及 Windows 桌面验收。

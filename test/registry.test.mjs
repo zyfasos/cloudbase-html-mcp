@@ -40,7 +40,10 @@ test('registered path rejects implicit duplicate creation and only newPage expli
   assert.notEqual(second.siteId, first.siteId);
   assert.equal((await publisher.get({ localPath })).siteId, second.siteId);
   assert.ok(cloud.objects.has(`sites/${first.siteId}/index.html`));
-  await assert.rejects(publisher.publish({ localPath, siteId: first.siteId, expectedSha256: first.sha256 }), { code: 'LOCAL_BINDING_CONFLICT' });
+  const unchanged = await publisher.publish({ localPath, siteId: first.siteId, expectedSha256: first.sha256 });
+  assert.equal(unchanged.siteId, first.siteId);
+  assert.equal(unchanged.pathBinding.defaultSiteId, second.siteId);
+  assert.equal((await publisher.get({ localPath })).siteId, second.siteId);
   assert.equal(cloud.puts.length, 2);
 });
 

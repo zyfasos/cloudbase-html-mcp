@@ -185,7 +185,7 @@ export class PageRegistry {
 
   async save(entry, data, catalog) {
     catalog ??= await this.readCatalog();
-    const { siteId, sha256, state, lifecycle, url, action = 'publish' } = data;
+    const { siteId, sha256, state, lifecycle, url, action = 'publish', newPage = false } = data;
     const previous = catalog.sites[siteId];
     const path = data.localPath ?? entry.localPath;
     const now = new Date().toISOString();
@@ -201,9 +201,13 @@ export class PageRegistry {
     updated.sites[siteId] = next;
     if (path && action !== 'offline') {
       const binding = updated.bindings[path];
-      if (!binding || binding.siteId === siteId || state === 'STORAGE_VERIFIED') {
+      // An explicit target may share a source with another site's default binding.
+      // Only a new-page reservation (including its retry) can replace that default.
+      if (!binding || binding.siteId === siteId) {
         updated.bindings[path] = { siteId, ...(binding?.siteId === siteId && binding.pendingSiteId ? { pendingSiteId: binding.pendingSiteId } : {}) };
-      } else updated.bindings[path] = { ...binding, pendingSiteId: siteId };
+      } else if (newPage || binding.pendingSiteId === siteId) {
+        updated.bindings[path] = state === 'STORAGE_VERIFIED' ? { siteId } : { ...binding, pendingSiteId: siteId };
+      }
     }
     await this.writeCatalog(updated);
     Object.assign(catalog, updated);

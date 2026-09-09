@@ -12,12 +12,15 @@ const setupGuide = (configuration) => ({
 
 export function recoveryFor(error, args = {}, tool) {
   const { code, stage, details = {} } = error;
-  const siteId = details.siteId ?? args.siteId;
+  const siteId = args.siteId ?? details.siteId;
+  const writeAttempted = ['VERSION_WRITE_ATTEMPTED', 'CURRENT_WRITE_ATTEMPTED', 'STORAGE_VERIFIED'].includes(details.writeState);
+  const lifecycleFailure = !['INPUT', 'REGISTRY', 'CONFIG', 'CREDENTIAL_EXCHANGE', 'STATIC_STORE'].includes(stage) ||
+    writeAttempted || details.observedStorage === 'absent';
   const result = (action, message, next = {}, retryable = false) => ({
     retryable, maxRetries: retryable ? 1 : 0,
     next_step: { action, message, ...next },
   });
-  if (details.operation === 'offline' && siteId) {
+  if (details.operation === 'offline' && siteId && lifecycleFailure) {
     return result('inspect_offline', '先 get_html 核对当前对象和未完成操作；确认后用原 expectedSha256 重试 offline_html。已下线但清理未完成不能宣称空间全部回收。', {
       ...query(siteId), resume: { tool: 'offline_html', suggested_args: { siteId, expectedSha256: details.expectedSha256 } },
     });
@@ -27,10 +30,11 @@ export function recoveryFor(error, args = {}, tool) {
       tool: 'online_html', required_params: ['siteId', 'localPath'], ...(siteId ? { suggested_args: { siteId } } : {}),
     });
   }
-  if (['PAGE_NOT_OFFLINE', 'CLEANUP_PENDING', 'OPERATION_PENDING'].includes(code) || details.operation === 'online') {
-    return result('inspect_lifecycle', '先查询云端及本地未完成操作。已在线页面走 publish_html 更新；离线清理未完成先重试 offline_html；上线超时应核对后用原 siteId 和指定文件重试 online_html。', siteId ? query(siteId) : {});
+  const onlineLifecycleFailure = details.operation === 'online' && lifecycleFailure;
+  if (['PAGE_NOT_OFFLINE', 'CLEANUP_PENDING', 'OPERATION_PENDING'].includes(code) || onlineLifecycleFailure) {
+    return result('inspect_lifecycle', '先查询目标站点的云端及本地未完成操作。已在线页面走 publish_html 更新；离线清理未完成先重试 offline_html；上线超时应核对后用原 siteId 和指定文件重试 online_html。pathBinding 仅说明文件的默认查找目标，不能用另一站点替代本次目标；下线不会释放绑定，不要直接修改登记文件。', siteId ? query(siteId) : {});
   }
-  if (['VERSION_WRITE_ATTEMPTED', 'CURRENT_WRITE_ATTEMPTED', 'STORAGE_VERIFIED'].includes(details.writeState) && siteId) {
+  if (writeAttempted && siteId) {
     return result('verify_current', '写入可能已生效。先查询当前对象；确认状态后再决定是否重试，不要重新创建页面。', query(siteId));
   }
   if (['VERSION_CONFLICT', 'EXPECTED_HASH_REQUIRED', 'LOCAL_SITE_EXISTS', 'LOCAL_BINDING_CONFLICT'].includes(code) && siteId) {
@@ -46,6 +50,9 @@ export function recoveryFor(error, args = {}, tool) {
     return result('check_static_hosting', '检查当前环境的静态网站托管资源和在线状态；响应不完整或尚未就绪不等于必须新建。若控制台确实要求开通，由用户确认资源与费用后操作，再调用 hosting_status；不自动创建资源或切换环境。', { setup_guide: setupGuide(details.configuration), tool: 'hosting_status', suggested_args: {} });
   }
   if (code === 'LOCAL_PAGE_NOT_FOUND') {
+    if (details.operation === 'online') {
+      return result('locate_offline_registration', '当前机器没有目标站点的离线登记。核对环境与登记目录，或使用保留原登记的机器；不能自动认领离线站点，不要把恢复请求改成新建页面或手改登记。', siteId ? { ...query(siteId), action: 'locate_offline_registration' } : {});
+    }
     return result('locate_page', '当前环境没有此路径的登记。已有页面请提供 siteId；确需新页面时再使用 publish_html。');
   }
   if (stage === 'REGISTRY') {

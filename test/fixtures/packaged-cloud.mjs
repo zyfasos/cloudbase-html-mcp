@@ -25,6 +25,7 @@ CloudBase.prototype.deleteObjects = async function () { throw new Error('no snap
 globalThis.fetch = async (url) => {
   const parsed = new URL(url);
   if (parsed.origin !== 'https://package.example') throw new Error('network prohibited');
-  const o = (await objects())[parsed.pathname.slice(1)];
+  const path = parsed.pathname.slice(1);
+  const o = (await objects())[path.endsWith('/') ? path + 'index.html' : path];
   return o ? new Response(Buffer.from(o.body, 'base64'), { headers: { 'content-type': 'text/html' } }) : new Response('', { status: 404 });
 };

@@ -32,6 +32,7 @@ test('real STDIO publishes, restarts, looks up by path, follows conflict advice 
     assert.equal(response.isError, false);
     first = response.structuredContent;
     assert.equal(first.status, 'PUBLISHED');
+    assert.equal(first.url, `https://example.com/sites/${first.siteId}/`);
     assert.equal(first.registry.state, 'SAVED');
   } finally { await client.close(); }
   client = await session(directory);
@@ -43,6 +44,9 @@ test('real STDIO publishes, restarts, looks up by path, follows conflict advice 
     const next = await client.callTool({ name: step.tool, arguments: step.suggested_args });
     assert.equal(next.isError, false);
     assert.equal(next.structuredContent.siteId, first.siteId);
+    const legacy = (await client.callTool({ name: 'get_html', arguments: { siteUrl: first.url + 'index.html' } })).structuredContent;
+    assert.equal(legacy.siteId, first.siteId);
+    assert.equal(legacy.url, first.url);
     const byPath = (await client.callTool({ name: 'get_html', arguments: { localPath } })).structuredContent;
     assert.equal(byPath.siteId, first.siteId);
     await writeFile(localPath, '<html><body>updated through STDIO</body></html>');
@@ -210,5 +214,109 @@ test('STDIO exposes only current path selectors and keeps known-ID queries usabl
     const byPath = await client.callTool({ name: 'get_html', arguments: { localPath } });
     assert.equal(byPath.isError, true);
     assert.equal(await readFile(file, 'utf8'), '{broken');
+  } finally { await client.close(); }
+});
+
+test('STDIO restores explicit A after restart without replacing B, then updates A by URL', async (t) => {
+  const { directory, localPath } = await fixture(t);
+  let client = await session(directory);
+  async function call(name, args = {}) {
+    const result = await client.callTool({ name, arguments: args });
+    assert.equal(result.isError, false, JSON.stringify(result));
+    return result.structuredContent;
+  }
+  let a, b, other;
+  try {
+    a = await call('publish_html', { localPath });
+    b = await call('publish_html', { localPath, newPage: true });
+    other = (await call('list_html')).sites.find((s) => s.siteId === b.siteId);
+    await call('offline_html', { siteId: a.siteId, expectedSha256: a.sha256 });
+  } finally { await client.close(); }
+  client = await session(directory);
+  try {
+    const restored = await call('online_html', { siteId: a.siteId, localPath });
+    assert.equal(restored.url, a.url);
+    assert.equal(restored.pathBinding.defaultSiteId, b.siteId);
+    await writeFile(localPath, '<html>updated A while B stays unchanged</html>');
+    const stale = (await client.callTool({ name: 'publish_html', arguments: { siteUrl: a.url, localPath, expectedSha256: '0'.repeat(64) } })).structuredContent;
+    assert.equal(stale.code, 'VERSION_CONFLICT');
+    assert.equal(stale.siteId, a.siteId);
+    assert.equal(stale.pathBinding.defaultSiteId, b.siteId);
+    assert.deepEqual(stale.next_step.suggested_args, { siteId: a.siteId });
+    const current = await call('get_html', { siteUrl: a.url });
+    const updated = await call('publish_html', { siteUrl: a.url, localPath, expectedSha256: current.sha256 });
+    assert.equal(updated.url, a.url);
+    assert.notEqual(updated.sha256, b.sha256);
+    assert.equal((await call('get_html', { localPath })).siteId, b.siteId);
+    assert.equal((await call('get_html', { siteId: b.siteId })).sha256, b.sha256);
+    assert.deepEqual((await call('list_html')).sites.find((s) => s.siteId === b.siteId), other);
+  } finally { await client.close(); }
+});
+
+test('restore process exit keeps A pending and B bound; confirmed-exit lock recovery resumes A', async (t) => {
+  const { readFile, unlink } = await import('node:fs/promises');
+  const { PageRegistry } = await import('../src/registry.mjs');
+  const { scope } = await import('./helpers.mjs');
+  const { directory, localPath } = await fixture(t);
+  const registry = new PageRegistry(join(directory, 'pages'), scope);
+  let client = await session(directory), a, b;
+  try {
+    a = (await client.callTool({ name: 'publish_html', arguments: { localPath } })).structuredContent;
+    b = (await client.callTool({ name: 'publish_html', arguments: { localPath, newPage: true } })).structuredContent;
+    assert.equal((await client.callTool({ name: 'offline_html', arguments: { siteId: a.siteId, expectedSha256: a.sha256 } })).isError, false);
+  } finally { await client.close(); }
+  const before = JSON.parse(await readFile(registry.file, 'utf8'));
+  client = await session(directory, undefined, 'COS_CURRENT_PUT');
+  try {
+    await assert.rejects(client.callTool({ name: 'online_html', arguments: { siteId: a.siteId, localPath } }), /Connection closed/);
+  } finally { await client.close(); }
+  const interrupted = JSON.parse(await readFile(registry.file, 'utf8'));
+  assert.deepEqual(interrupted.bindings, before.bindings);
+  assert.deepEqual(interrupted.sites[b.siteId], before.sites[b.siteId]);
+  assert.equal(interrupted.sites[a.siteId].operation.action, 'online');
+  client = await session(directory);
+  try {
+    assert.equal((await client.callTool({ name: 'get_html', arguments: { localPath } })).structuredContent.siteId, b.siteId);
+    assert.equal((await client.callTool({ name: 'online_html', arguments: { siteId: a.siteId, localPath } })).structuredContent.code, 'REGISTRY_BUSY');
+  } finally { await client.close(); }
+  // Only this isolated fixture's exited process owned the lock; do not edit its catalogue.
+  await unlink(registry.file + '.lock');
+  client = await session(directory);
+  try {
+    const restored = await client.callTool({ name: 'online_html', arguments: { siteId: a.siteId, localPath } });
+    assert.equal(restored.isError, false);
+    assert.equal(restored.structuredContent.url, a.url);
+    assert.equal(restored.structuredContent.pathBinding.defaultSiteId, b.siteId);
+  } finally { await client.close(); }
+});
+
+test('STDIO online preflight diagnoses missing files, missing registrations and locks without publishing', async (t) => {
+  const { PageRegistry } = await import('../src/registry.mjs');
+  const { scope } = await import('./helpers.mjs');
+  const { access } = await import('node:fs/promises');
+  const { directory, localPath } = await fixture(t);
+  const client = await session(directory);
+  const siteId = 's-' + 'a'.repeat(32);
+  try {
+    const missing = (await client.callTool({ name: 'online_html', arguments: { siteId, localPath: join(directory, 'missing.html') } })).structuredContent;
+    assert.equal(missing.code, 'FILE_NOT_READABLE');
+    assert.equal(missing.next_step.action, 'correct_input');
+    const unknown = (await client.callTool({ name: 'online_html', arguments: { siteId, localPath } })).structuredContent;
+    assert.equal(unknown.code, 'LOCAL_PAGE_NOT_FOUND');
+    assert.equal(unknown.next_step.action, 'locate_offline_registration');
+    assert.deepEqual(unknown.next_step.suggested_args, { siteId });
+    const lock = await new PageRegistry(join(directory, 'pages'), scope).acquire();
+    try {
+      const busy = (await client.callTool({ name: 'online_html', arguments: { siteUrl: `https://example.com/sites/${siteId}/`, localPath } })).structuredContent;
+      assert.equal(busy.code, 'REGISTRY_BUSY');
+      assert.equal(busy.next_step.action, 'inspect_local_registry');
+      assert.match(busy.next_step.message, /遗留锁/);
+      const offlineBusy = (await client.callTool({ name: 'offline_html', arguments: { siteId, expectedSha256: '0'.repeat(64) } })).structuredContent;
+      assert.equal(offlineBusy.code, 'REGISTRY_BUSY');
+      assert.match(offlineBusy.next_step.message, /遗留锁/);
+      assert.equal(offlineBusy.next_step.resume, undefined);
+    } finally { await lock.release(); }
+    assert.equal((await client.callTool({ name: 'list_html', arguments: {} })).structuredContent.total, 0);
+    await assert.rejects(access(join(directory, 'fake-cloud.json')), { code: 'ENOENT' });
   } finally { await client.close(); }
 });

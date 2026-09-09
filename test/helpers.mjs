@@ -53,7 +53,8 @@ export class FakeCloud {
     this.objects.set(key, { bytes: bytes.length, sha256, body: bytes.toString('base64') });
   }
   fetch = async (url) => {
-    const object = this.objects.get(new URL(url).pathname.slice(1));
+    const path = new URL(url).pathname.slice(1);
+    const object = this.objects.get(path.endsWith('/') ? path + 'index.html' : path);
     return object ? new Response(Buffer.from(object.body, 'base64'), { headers: { 'content-type': 'text/html' } }) : new Response('', { status: 404 });
   };
 }

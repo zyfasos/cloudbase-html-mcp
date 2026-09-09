@@ -68,7 +68,7 @@ export function parseSiteUrl(value) {
     if (!match) throw new Error();
     const url = new URL(value);
     if (url.username || url.password || url.search || url.pathname !== match[2] || /[%\\\s]/.test(match[1])) throw new Error();
-    return { siteId: match[3], origin: url.origin, path: match[2], url: `${url.origin}/sites/${match[3]}/index.html` };
+    return { siteId: match[3], origin: url.origin, path: match[2], url: `${url.origin}/sites/${match[3]}/` };
   } catch { throw new PublishError('INPUT', 'INVALID_SITE_URL'); }
 }
 
@@ -83,7 +83,8 @@ export function validateSiteUrl(store, parsed) {
 }
 
 export function accessCandidates(store, key) {
-  const path = `/${key}`;
+  const objectPath = `/${key}`;
+  const path = /^sites\/s-[0-9a-f]{32}\/index\.html$/.test(key) ? objectPath.slice(0, -'index.html'.length) : objectPath;
   const discovery = store.domainDiscovery ?? { state: 'UNAVAILABLE', domains: [] };
   const domains = discovery.domains ?? [];
   const names = [store.bucket, 'staticstore'];
@@ -92,7 +93,8 @@ export function accessCandidates(store, key) {
   function add(base, source, domain) {
     const baseOrigin = origin(base);
     if (!baseOrigin) return;
-    const reason = domain ? rejection(domain, path, names) : null;
+    // The shared directory URL and the stored object may match different routes.
+    const reason = domain ? rejection(domain, path, names) ?? rejection(domain, objectPath, names) : null;
     if (reason) { rejected.push({ url: `${baseOrigin}${path}`, source, reason }); return; }
     if (!candidates.some((c) => c.url === `${baseOrigin}${path}`)) candidates.push({ url: `${baseOrigin}${path}`, source });
   }

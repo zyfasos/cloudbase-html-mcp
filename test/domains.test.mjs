@@ -14,7 +14,7 @@ const store = (domains, extra = {}) => ({ bucket: 'test-bucket', baseUrl: 'https
 test('domain discovery ranks valid custom domains ahead of defaults, deduplicates candidates', () => {
   const result = accessCandidates(store([domain('default.tcloudbaseapp.com', { IsDefault: true }), domain('custom.example')]), key);
   assert.deepEqual(result.candidates.map((x) => x.source), ['gateway.custom', 'gateway.default']);
-  assert.equal(result.candidates[0].url, `https://custom.example/${key}`);
+  assert.equal(result.candidates[0].url, `https://custom.example/${key.replace('index.html', '')}`);
 });
 
 for (const [name, extra, routes, reason] of [
@@ -38,9 +38,9 @@ for (const [name, extra, routes, reason] of [
   });
 }
 
-test('enabled prefix preserves the original object path and accepts the staticstore alias', () => {
+test('enabled prefix returns the site directory and accepts the staticstore alias', () => {
   const result = accessCandidates(store([domain('custom.example', {}, [route({ Path: '/sites/', EnablePathTransmission: true, UpstreamResourceName: 'staticstore' })])]), key);
-  assert.equal(result.candidates[0].url, `https://custom.example/${key}`);
+  assert.equal(result.candidates[0].url, `https://custom.example/${key.replace('index.html', '')}`);
 });
 
 test('empty optional rewrite values do not hide an otherwise valid domain', () => {
@@ -125,4 +125,55 @@ test('malformed discovery responses fail closed without exposing response text',
     assert.deepEqual(result.domains, []);
     assert.equal(result.code, 'ROUTE_LOOKUP_FAILED');
   }
+});
+
+test('directory and legacy file URLs identify the same site and normalize to a directory URL', async () => {
+  const { parseSiteUrl, validateSiteUrl } = await import('../src/domains.mjs');
+  const directory = `https://custom.example/${key.replace('index.html', '')}`;
+  for (const url of [directory, directory + 'index.html', directory + '#heading', directory + 'index.html#heading']) {
+    const parsed = parseSiteUrl(url);
+    assert.equal(parsed.url, directory);
+    assert.equal(validateSiteUrl(store([domain('custom.example')]), parsed), 's-0123456789abcdef0123456789abcdef');
+  }
+  assert.equal(accessCandidates(store([domain('custom.example')]), 'sites/').candidates[0].url, 'https://custom.example/sites/');
+  assert.equal(accessCandidates(store([domain('custom.example')]), 'deployments/old/index.html').candidates[0].url, 'https://custom.example/deployments/old/index.html');
+});
+
+test('public verification requests the returned directory URL with the expected hash and rejects redirects', async () => {
+  const calls = [];
+  const result = await verifyAccess(store([domain('custom.example')]), key, sha256(html), async (url, options) => {
+    calls.push(url.href);
+    assert.equal(url.pathname, '/' + key.replace('index.html', ''));
+    assert.equal(url.searchParams.get('v'), sha256(html));
+    assert.equal(options.redirect, 'error');
+    return new Response(html, { headers: { 'content-type': 'text/html' } });
+  });
+  assert.equal(result.publicCheck.verified, true);
+  assert.equal(result.url, `https://custom.example/${key.replace('index.html', '')}`);
+  assert.equal(calls.length, 1);
+});
+
+for (const outcome of ['missing-index-routing', 'wrong-content', 'redirect']) {
+  test(`an accessible index.html does not hide a directory failure: ${outcome}`, async () => {
+    const config = store([domain('custom.example')], { configuredBaseUrl: 'https://custom.example' });
+    const paths = [];
+    const result = await verifyAccess(config, key, sha256(html), async (url) => {
+      paths.push(url.pathname);
+      if (url.pathname.endsWith('index.html')) return new Response(html, { headers: { 'content-type': 'text/html' } });
+      if (outcome === 'missing-index-routing') return new Response('', { status: 404 });
+      if (outcome === 'redirect') return new Response('', { status: 302, headers: { location: './index.html' } });
+      return new Response('<html>other page</html>', { headers: { 'content-type': 'text/html' } });
+    });
+    assert.equal(result.publicCheck.verified, false);
+    assert.deepEqual(paths, ['/' + key.replace('index.html', '')]);
+    assert.equal(result.url.endsWith('/'), true);
+  });
+}
+
+test('directory candidates also reject an index.html route mapped to another resource', () => {
+  const config = store([domain('custom.example', {}, [route(), route({ Path: '/' + key, UpstreamResourceName: 'other-bucket', EnablePathTransmission: true })])], { configuredBaseUrl: 'https://custom.example' });
+  const result = accessCandidates(config, key);
+  assert.deepEqual(result.candidates, []);
+  assert.equal(result.rejected[0].reason, 'OTHER_UPSTREAM');
+  assert.equal(result.rejected[0].url, `https://custom.example/${key.replace('index.html', '')}`);
 });

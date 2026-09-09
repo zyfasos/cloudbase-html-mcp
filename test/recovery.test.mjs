@@ -68,3 +68,36 @@ test('unverified public URL suggests a read while verified preview explains the 
   assert.equal(preview.next_step.action, 'open_preview');
   assert.equal(preview.retryable, false);
 });
+
+test('recovery follows the explicit requested ID rather than a different default-binding ID', () => {
+  const other = `s-${'b'.repeat(32)}`;
+  const error = new PublishError('REGISTRY', 'LOCAL_BINDING_CONFLICT', { siteId: other, operation: 'online' });
+  assert.deepEqual(recoveryFor(error, { siteId }).next_step.suggested_args, { siteId });
+});
+
+test('lifecycle preflight errors keep input, registry, credentials and hosting repair guidance', () => {
+  for (const [stage, code, action] of [
+    ['INPUT', 'FILE_NOT_READABLE', 'correct_input'],
+    ['INPUT', 'HTML_DOCUMENT_REQUIRED', 'correct_input'],
+    ['INPUT', 'SITE_URL_UNCONFIRMED', 'correct_input'],
+    ['CONFIG', 'CONFIG_REQUIRED', 'configure_environment'],
+    ['CREDENTIAL_EXCHANGE', 'HTTP_403', 'check_credentials'],
+    ['STATIC_STORE', 'NOT_ONLINE', 'check_static_hosting'],
+  ]) {
+    for (const operation of ['online', 'offline']) {
+      const next = recoveryFor(new PublishError(stage, code, { operation, siteId }), { siteId }).next_step;
+      assert.equal(next.action, action, operation + ': ' + code);
+      assert.notEqual(next.tool, 'online_html');
+    }
+  }
+  const busy = recoveryFor(new PublishError('REGISTRY', 'REGISTRY_BUSY', { operation: 'online' }), { siteUrl: `https://example.com/sites/${siteId}/` });
+  assert.equal(busy.next_step.action, 'inspect_local_registry');
+  assert.match(busy.next_step.message, /遗留锁/);
+  const unknown = recoveryFor(new PublishError('REGISTRY', 'LOCAL_PAGE_NOT_FOUND', { operation: 'online', siteId }), { siteId });
+  assert.equal(unknown.next_step.action, 'locate_offline_registration');
+  assert.deepEqual(unknown.next_step.suggested_args, { siteId });
+  const partialDelete = recoveryFor(new PublishError('REGISTRY', 'REGISTRY_WRITE_FAILED', { operation: 'offline', siteId, observedStorage: 'absent' }), { siteId });
+  assert.equal(partialDelete.next_step.resume.tool, 'offline_html');
+  const partialUpload = recoveryFor(new PublishError('REGISTRY', 'REGISTRY_WRITE_FAILED', { operation: 'online', siteId, writeState: 'CURRENT_WRITE_ATTEMPTED' }), { siteId });
+  assert.equal(partialUpload.next_step.tool, 'get_html');
+});

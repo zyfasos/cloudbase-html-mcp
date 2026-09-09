@@ -12,6 +12,13 @@ export function validateSiteId(siteId) {
   if (!/^s-[0-9a-f]{32}$/.test(siteId ?? '')) throw new PublishError('INPUT', 'INVALID_SITE_ID');
 }
 
+function registeredSiteUrl(site) {
+  try {
+    const parsed = parseSiteUrl(site?.url);
+    return parsed.siteId === site.siteId ? parsed.url : undefined;
+  } catch { return undefined; }
+}
+
 export async function loadHtml(localPath) {
   if (!isAbsolute(localPath) || !['.html', '.htm'].includes(extname(localPath).toLowerCase())) {
     throw new PublishError('INPUT', 'ABSOLUTE_HTML_PATH_REQUIRED');
@@ -133,6 +140,13 @@ export class Publisher {
     this.busy = true;
     let context;
     let registration;
+    const pathBinding = () => {
+      if (!registration) return {};
+      const path = this.registry.entry(localPath).localPath;
+      const binding = registration.catalog.bindings[path];
+      return { pathBinding: { localPath: path, defaultSiteId: binding?.siteId ?? null,
+        pendingSiteId: binding?.pendingSiteId ?? null, matchesTarget: binding?.siteId === siteId } };
+    };
     const registryWarnings = [];
     const action = restoring ? 'online' : 'publish';
     try {
@@ -144,6 +158,7 @@ export class Publisher {
       registration = await this.registry?.acquire(localPath);
       const bound = registration?.record;
       if (!siteId && !siteUrl && !newPage && bound) {
+        siteId = bound.siteId;
         throw new PublishError('REGISTRY', bound.lifecycle === 'offline' ? 'PAGE_OFFLINE' : 'LOCAL_SITE_EXISTS',
           { siteId: bound.siteId, pendingRegistration: bound.pending });
       }
@@ -151,9 +166,7 @@ export class Publisher {
       let selected;
       if (siteId || siteUrl) selected = await this.target(siteUrl ? { siteUrl } : { siteId }, registration?.catalog);
       siteId = selected?.siteId ?? 's-' + randomUUID().replaceAll('-', '');
-      if (bound && bound.siteId !== siteId && bound.pending?.siteId !== siteId && !newPage) {
-        throw new PublishError('REGISTRY', 'LOCAL_BINDING_CONFLICT', { siteId: bound.siteId });
-      }
+      context = { siteId, writeState: 'NOT_STARTED' };
       const site = selected?.site;
       if (restoring) {
         if (!site) throw new PublishError('REGISTRY', 'LOCAL_PAGE_NOT_FOUND');
@@ -180,7 +193,7 @@ export class Publisher {
           throw new PublishError('PUBLISH', 'VERSION_CONFLICT');
         }
       }
-      await registration?.save({ siteId, sha256: hash, state: 'PENDING', url: context.url, action });
+      await registration?.save({ siteId, sha256: hash, state: 'PENDING', url: context.url, action, newPage });
       if (current?.sha256 !== hash) {
         context.writeState = 'CURRENT_WRITE_ATTEMPTED';
         await this.backend.put(key, bytes, hash, 'COS_CURRENT_PUT');
@@ -191,21 +204,21 @@ export class Publisher {
       context.lifecycle = 'online';
       const verified = await verifyAccess(store, key, hash, this.fetcher);
       let registryState = registration ? 'SAVED' : 'DISABLED';
-      try { await registration?.save({ siteId, sha256: hash, state: 'STORAGE_VERIFIED', lifecycle: 'online', url: verified.url ?? context.url, action }); }
+      try { await registration?.save({ siteId, sha256: hash, state: 'STORAGE_VERIFIED', lifecycle: 'online', url: verified.url ?? context.url, action, newPage }); }
       catch { registryState = 'UPDATE_FAILED'; registryWarnings.push('云端存储已验证，但本地登记状态更新失败。保留 siteId，查询实际状态后重试原操作。'); }
       const { publicCheck } = verified;
-      return { ...context, ...verified, status: publicCheck.verified ? 'PUBLISHED' : publicCheck.defaultDomainNotice ? 'PUBLISHED_PREVIEW' : 'UPLOADED_NOT_PUBLICLY_VERIFIED',
+      return { ...context, ...verified, ...pathBinding(), status: publicCheck.verified ? 'PUBLISHED' : publicCheck.defaultDomainNotice ? 'PUBLISHED_PREVIEW' : 'UPLOADED_NOT_PUBLICLY_VERIFIED',
         bytes: bytes.length, warnings, registry: { state: registryState, warnings: registryWarnings }, ...publicRecovery(siteId, publicCheck) };
     } catch (error) {
       if (context && context.writeState !== 'NOT_STARTED' && registration) {
-        try { await registration.save({ siteId: context.siteId, sha256: context.sha256, state: 'UNCERTAIN', action }); }
+        try { await registration.save({ siteId: context.siteId, sha256: context.sha256, state: 'UNCERTAIN', action, newPage }); }
         catch { registryWarnings.push('本地状态写入失败；核对云端后重试原操作。'); }
       }
       if (error instanceof PublishError) {
-        error.details = { ...error.details, ...context, registryWarnings, operation: action };
+        error.details = { ...error.details, ...context, ...pathBinding(), registryWarnings, operation: action };
         throw error;
       }
-      throw new PublishError('PUBLISH', 'FAILED', { ...context, registryWarnings, operation: action });
+      throw new PublishError('PUBLISH', 'FAILED', { ...context, ...pathBinding(), registryWarnings, operation: action });
     } finally {
       try { await registration?.release(); }
       catch { registryWarnings.push('登记锁释放失败；确认无其他写入进程后处理遗留锁。'); }
@@ -220,7 +233,7 @@ export class Publisher {
     const head = await this.backend.head(currentKey(siteId));
     if (!head) {
       if (site?.lifecycle === 'offline') return { siteId, lifecycle: 'offline', observedStorage: 'absent',
-        sha256: site.sha256, url: site.url, operation: site.operation, registryState: site.state,
+        sha256: site.sha256, url: registeredSiteUrl(site), operation: site.operation, registryState: site.state,
         publicCheck: { verified: false, reason: 'OFFLINE' }, cleanup: { complete: !site.operation } };
       throw new PublishError('QUERY', 'SITE_NOT_FOUND', { siteId, registrationState: site?.state, operation: site?.operation,
         pendingRegistration: registration?.pending, registryDiagnostic });
@@ -232,7 +245,11 @@ export class Publisher {
       ...publicRecovery(siteId, verified.publicCheck) };
   }
 
-  async list(args) { this.requireRegistry(); return this.registry.list(args); }
+  async list(args) {
+    this.requireRegistry();
+    const result = await this.registry.list(args);
+    return { ...result, sites: result.sites.map((site) => ({ ...site, ...(site.url ? { url: registeredSiteUrl(site) } : {}) })) };
+  }
 
   async offline(args) {
     this.requireRegistry();
@@ -254,7 +271,7 @@ export class Publisher {
       siteId = selected.siteId;
       const site = selected.site;
       const store = selected.store ?? await this.backend.connect();
-      url = site?.url ?? accessCandidates(store, currentKey(siteId)).candidates[0]?.url;
+      url = registeredSiteUrl(site) ?? accessCandidates(store, currentKey(siteId)).candidates[0]?.url;
       await this.backend.assertDeletionSafe();
       // Preserve the intended hash before checking/deleting; retries use the same precondition.
       if (site?.operation && site.operation.action !== 'offline') throw new PublishError('PUBLISH', 'OPERATION_PENDING');

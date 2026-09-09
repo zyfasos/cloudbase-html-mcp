@@ -60,15 +60,18 @@ test('packed artifact installs offline, preserves default config and catalog acr
     const r = await client.callTool({ name, arguments: args });
     assert.equal(r.isError, false, JSON.stringify(r)); return r.structuredContent;
   }
-  let first;
+  let first, second, secondRegistration;
   await session(async (client) => {
     assert.equal((await client.listTools()).tools.length, 6);
     assert.equal((await call(client, 'hosting_status')).configuration.path, file);
     first = await call(client, 'publish_html', { localPath: html });
+    assert.equal(first.url, `https://package.example/sites/${first.siteId}/`);
     const old = await call(client, 'get_html', { siteUrl: first.url });
     await writeFile(html, '<html>package v2</html>');
     const updated = await call(client, 'publish_html', { localPath: html, siteUrl: first.url, expectedSha256: old.sha256 });
     assert.equal(updated.url, first.url);
+    second = await call(client, 'publish_html', { localPath: html, newPage: true });
+    secondRegistration = (await call(client, 'list_html')).sites.find((s) => s.siteId === second.siteId);
     await call(client, 'offline_html', { siteId: first.siteId, expectedSha256: updated.sha256 });
   });
   // Simulate removal/reinstallation of the entire program. User data must not live here.
@@ -79,8 +82,12 @@ test('packed artifact installs offline, preserves default config and catalog acr
     assert.equal(listed.sites[0].siteId, first.siteId);
     const restored = await call(client, 'online_html', { siteId: first.siteId, localPath: html });
     assert.equal(restored.url, first.url);
+    assert.equal(restored.pathBinding.defaultSiteId, second.siteId);
+    assert.equal((await call(client, 'get_html', { localPath: html })).siteId, second.siteId);
+    assert.equal((await call(client, 'get_html', { siteId: second.siteId })).sha256, second.sha256);
+    assert.deepEqual((await call(client, 'list_html')).sites.find((s) => s.siteId === second.siteId), secondRegistration);
   });
   assert.equal(await readFile(file, 'utf8'), credentials);
   const stored = JSON.parse(await readFile(join(temporary, 'objects.json'), 'utf8'));
-  assert.deepEqual(Object.keys(stored), [`sites/${first.siteId}/index.html`]);
+  assert.deepEqual(Object.keys(stored).sort(), [first.siteId, second.siteId].map((id) => `sites/${id}/index.html`).sort());
 });

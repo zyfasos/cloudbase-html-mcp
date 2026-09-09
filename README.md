@@ -6,6 +6,8 @@
 
 **v0.4.0-beta.2：公开测试版。** 本地 STDIO MCP · 六工具 · MIT。本版包含已通过 macOS/Windows CI 的修复；WorkBuddy、千问办公的 macOS 接入与发布、WorkBuddy 下线已获用户实测确认；更新与恢复仍待验收。见 [验证状态](PROJECT.md#v04-验证与发布安排)。
 
+当前源码另含共享文件绑定修复和目录分享地址调整，尚未进入 npm beta.2；下方模板仍安装已发布版本。
+
 ## 快速接入
 
 主线是 **Node.js 22+ → 放好完整配置文件 → 添加 MCP → 验证**。首次使用可先看 [Node 安装说明](docs/getting-started.md#prepare-node)。无需 CloudBase CLI；管理员发 Key 的用户无需 CloudBase 登录，也不必经过终端向导。

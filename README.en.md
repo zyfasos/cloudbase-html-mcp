@@ -6,6 +6,8 @@ A local STDIO MCP server that lets your desktop AI agent publish a designated HT
 
 **0.4.0-beta.2 is a public beta for testing.** This beta includes the fixes verified by macOS/Windows CI. Users have confirmed onboarding and publishing in WorkBuddy and Qianwen Office on macOS, plus taking a site offline in WorkBuddy. Same-URL updates and restart/restore acceptance remain pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
+The shared-file binding fix and directory share URLs in the current source are not yet included in the published beta.2 package.
+
 ## Setup
 
 Receive a completed `credentials.env` from your administrator and place it at `.config/cloudbase-html-mcp/credentials.env` under your home directory. Then add the MCP using the appropriate client configuration, reload it, and run `hosting_status` and `list_html`. Administrator-issued Keys require no CloudBase login.

@@ -256,3 +256,50 @@ test('production COS adapter refuses unknown versioning and detects per-object b
   assert.equal((await cloud.listObjects('a')).nextMarker, 'a');
   await assert.rejects(cloud.listObjects('a', 'a'), { code: 'INVALID_LIST_CURSOR' });
 });
+
+test('directory links cover the lifecycle while old file links and offline catalogue URLs remain compatible', async (t) => {
+  const { publisher, cloud, registry, localPath } = await setup(t);
+  const first = await publisher.publish({ localPath });
+  assert.equal(first.url, `https://example.com/sites/${first.siteId}/`);
+  assert.equal(first.publicCheck.verified, true);
+  const legacy = first.url + 'index.html';
+  const found = await publisher.get({ siteUrl: legacy + '#old-link' });
+  assert.equal(found.siteId, first.siteId);
+  assert.equal(found.url, first.url);
+  await writeFile(localPath, '<html>new version through legacy link</html>');
+  const updated = await publisher.publish({ siteUrl: legacy, localPath, expectedSha256: found.sha256 });
+  assert.equal(updated.url, first.url);
+  const offline = await publisher.offline({ siteUrl: legacy, expectedSha256: updated.sha256 });
+  assert.equal(offline.url, first.url);
+  const catalog = JSON.parse(await readFile(registry.file, 'utf8'));
+  catalog.sites[first.siteId].url = legacy;
+  const previous = JSON.stringify(catalog);
+  await writeFile(registry.file, previous);
+  assert.equal((await publisher.list({})).sites[0].url, first.url);
+  assert.equal((await publisher.get({ siteUrl: legacy })).url, first.url);
+  assert.equal(await readFile(registry.file, 'utf8'), previous, 'read-only queries must not migrate the catalogue');
+  const restored = await publisher.online({ siteUrl: legacy, localPath });
+  assert.equal(restored.url, first.url);
+  assert.equal(restored.publicCheck.verified, true);
+  assert.equal(cloud.objects.size, 1);
+  assert.ok(cloud.puts.every((key) => key === currentKey(first.siteId)));
+});
+
+test('storage success with a failing directory URL remains uploaded but not publicly verified', async (t) => {
+  const { publisher, cloud, localPath } = await setup(t);
+  const requested = [];
+  publisher.fetcher = async (url) => {
+    requested.push(new URL(url).pathname);
+    if (new URL(url).pathname.endsWith('/')) return new Response('', { status: 404 });
+    return cloud.fetch(url);
+  };
+  const published = await publisher.publish({ localPath });
+  assert.equal(published.status, 'UPLOADED_NOT_PUBLICLY_VERIFIED');
+  assert.equal(published.writeState, 'STORAGE_VERIFIED');
+  assert.equal(published.lifecycle, 'online');
+  assert.equal(published.url, `https://example.com/sites/${published.siteId}/`);
+  assert.equal(published.publicCheck.httpStatus, 404);
+  assert.deepEqual(requested, [`/sites/${published.siteId}/`]);
+  assert.equal((await cloud.fetch(published.url + 'index.html')).status, 200);
+  assert.deepEqual(cloud.puts, [currentKey(published.siteId)]);
+});

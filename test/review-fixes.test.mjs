@@ -95,7 +95,9 @@ for (const [name, override] of [
     await assert.rejects(publisher.online({ localPath, siteUrl: folder }), { code: 'SITE_URL_UNCONFIRMED' });
     assert.equal(cloud.puts.length, puts);
     assert.equal(cloud.deletes.length, 0);
-    assert.equal((await publisher.get({ siteUrl: first.url })).siteId, first.siteId);
+    const legacy = await publisher.get({ siteUrl: first.url + 'index.html' });
+    assert.equal(legacy.siteId, first.siteId);
+    assert.equal(legacy.publicCheck.reason, 'NO_ACCESS_CANDIDATE');
   });
 }
 
@@ -174,3 +176,119 @@ test('rebinding one of several paths preserves other active selectors and moves 
   assert.equal(cloud.objects.has(currentKey(first.siteId)), false);
   assert.equal(cloud.objects.has(currentKey(second.siteId)), true);
 });
+
+for (const otherOffline of [false, true]) {
+  test(`explicit restore preserves another site's ${otherOffline ? 'offline' : 'online'} default binding and contents`, async (t) => {
+    const { publisher, registry, cloud, localPath } = await setup(t);
+    const a = await publisher.publish({ localPath });
+    const b = await publisher.publish({ localPath, newPage: true });
+    await publisher.offline({ siteId: a.siteId, expectedSha256: a.sha256 });
+    if (otherOffline) await publisher.offline({ siteId: b.siteId, expectedSha256: b.sha256 });
+    const before = await registry.readCatalog();
+    const objectB = structuredClone(cloud.objects.get(currentKey(b.siteId)));
+    const restarted = new Publisher(cloud, cloud.fetch, new PageRegistry(registry.directory, scope));
+    const restored = await restarted.online({ siteUrl: a.url, localPath });
+    assert.equal(restored.siteId, a.siteId);
+    assert.equal(restored.url, a.url);
+    assert.equal(restored.lifecycle, 'online');
+    assert.deepEqual(restored.pathBinding, { localPath, defaultSiteId: b.siteId, pendingSiteId: null, matchesTarget: false });
+    const after = await registry.readCatalog();
+    assert.deepEqual(after.bindings, before.bindings);
+    assert.deepEqual(after.sites[b.siteId], before.sites[b.siteId]);
+    assert.deepEqual(after.sites[a.siteId].localPaths, []);
+    assert.deepEqual(after.sites[a.siteId].sourcePaths, [localPath]);
+    assert.deepEqual(cloud.objects.get(currentKey(b.siteId)), objectB);
+    assert.equal((await restarted.get({ localPath })).siteId, b.siteId);
+    assert.equal((await restarted.get({ siteId: a.siteId })).sha256, a.sha256);
+    assert.equal(cloud.puts.every((key) => key.startsWith('sites/')), true);
+  });
+}
+
+test('explicit URL updates the requested site while stale hashes and lifecycle errors keep that same target', async (t) => {
+  const { recoveryFor } = await import('../src/recovery.mjs');
+  const { publisher, registry, cloud, localPath } = await setup(t);
+  const a = await publisher.publish({ localPath });
+  const b = await publisher.publish({ localPath, newPage: true });
+  const before = await registry.readCatalog();
+  await writeFile(localPath, '<html>new content for A only</html>');
+  const puts = cloud.puts.length;
+  for (const [method, args, code] of [
+    ['publish', { siteUrl: a.url, expectedSha256: '0'.repeat(64) }, 'VERSION_CONFLICT'],
+    ['publish', { siteUrl: a.url }, 'EXPECTED_HASH_REQUIRED'],
+    ['online', { siteUrl: a.url }, 'PAGE_NOT_OFFLINE'],
+  ]) {
+    await assert.rejects(publisher[method]({ ...args, localPath }), (error) => {
+      assert.equal(error.code, code);
+      assert.equal(error.details.siteId, a.siteId);
+      assert.equal(error.details.pathBinding.defaultSiteId, b.siteId);
+      assert.deepEqual(recoveryFor(error, args).next_step.suggested_args, { siteId: a.siteId });
+      return true;
+    });
+  }
+  assert.equal(cloud.puts.length, puts);
+  const updated = await publisher.publish({ siteUrl: a.url, localPath, expectedSha256: a.sha256 });
+  assert.equal(updated.url, a.url);
+  assert.notEqual(updated.sha256, a.sha256);
+  assert.equal((await publisher.get({ localPath })).sha256, b.sha256);
+  const after = await registry.readCatalog();
+  assert.deepEqual(after.bindings, before.bindings);
+  assert.deepEqual(after.sites[b.siteId], before.sites[b.siteId]);
+});
+
+for (const failure of ['put', 'timeout', 'head', 'final-save']) {
+  test(`explicit restore ${failure} failure and retry preserve the default and an unrelated pending page`, async (t) => {
+    class FailSave extends PageRegistry {
+      async save(entry, data, catalog) {
+        if (this.fail && data.state === 'STORAGE_VERIFIED') throw new PublishError('REGISTRY', 'REGISTRY_WRITE_FAILED');
+        return super.save(entry, data, catalog);
+      }
+    }
+    const { publisher, registry, cloud, localPath } = await setup(t, FailSave);
+    const a = await publisher.publish({ localPath });
+    const b = await publisher.publish({ localPath, newPage: true });
+    await publisher.offline({ siteId: a.siteId, expectedSha256: a.sha256 });
+    cloud.failAt = 'COS_CURRENT_PUT';
+    await assert.rejects(publisher.publish({ localPath, newPage: true }), { code: 'AccessDenied' });
+    cloud.failAt = undefined;
+    const before = await registry.readCatalog();
+    const pending = before.bindings[localPath].pendingSiteId;
+    const put = cloud.put.bind(cloud), head = cloud.head.bind(cloud);
+    let written = false;
+    cloud.put = async (...args) => {
+      if (failure === 'put') throw new PublishError('COS_CURRENT_PUT', 'AccessDenied');
+      await put(...args); written = true;
+      if (failure === 'timeout') throw new PublishError('COS_CURRENT_PUT', 'ETIMEDOUT');
+    };
+    cloud.head = async (key) => {
+      if (failure === 'head' && written) throw new PublishError('COS_HEAD', 'ETIMEDOUT');
+      return head(key);
+    };
+    registry.fail = failure === 'final-save';
+    if (failure === 'final-save') {
+      const result = await publisher.online({ siteId: a.siteId, localPath });
+      assert.equal(result.registry.state, 'UPDATE_FAILED');
+      assert.equal(result.lifecycle, 'online');
+      assert.equal(result.pathBinding.defaultSiteId, b.siteId);
+      assert.equal(result.pathBinding.pendingSiteId, pending);
+    } else {
+      await assert.rejects(publisher.online({ siteId: a.siteId, localPath }), (error) => {
+        assert.equal(error.details.siteId, a.siteId);
+        assert.equal(error.details.pathBinding.defaultSiteId, b.siteId);
+        assert.equal(error.details.pathBinding.pendingSiteId, pending);
+        return true;
+      });
+    }
+    for (const id of [b.siteId, pending]) assert.deepEqual((await registry.lookupSite(id)), before.sites[id]);
+    assert.deepEqual((await registry.readCatalog()).bindings, before.bindings);
+    assert.equal((await registry.lookupSite(a.siteId)).operation.action, 'online');
+    cloud.put = put; cloud.head = head;
+    const restarted = new Publisher(cloud, cloud.fetch, new PageRegistry(registry.directory, scope));
+    const restored = await restarted.online({ siteId: a.siteId, localPath });
+    assert.equal(restored.url, a.url);
+    assert.equal(restored.registry.state, 'SAVED');
+    assert.equal((await registry.lookupSite(a.siteId)).operation, null);
+    for (const id of [b.siteId, pending]) assert.deepEqual((await registry.lookupSite(id)), before.sites[id]);
+    assert.deepEqual((await registry.readCatalog()).bindings, before.bindings);
+    assert.equal((await restarted.get({ localPath })).siteId, b.siteId);
+  });
+}

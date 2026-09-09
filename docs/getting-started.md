@@ -217,17 +217,19 @@ cloudbase-html-mcp --version
 
 持续迭代同一 URL 时复用 `siteId`。`publish_html` 覆盖 `sites/<siteId>/index.html`，不创建云快照；域名映射不变时 URL 不变。`newPage: true` 表示另建页面，不用于更新。
 
+**当前源码默认返回 `/sites/<siteId>/` 分享地址**，云端仍保存 `index.html`；此调整尚未进入 npm beta.2。公网验证直接请求目录地址，不用文件地址的成功结果代替。目录返回错误、内容不符或重定向时不会标记公网验证通过，也不会自动修改托管配置。旧 `/sites/<siteId>/index.html` 链接继续支持查询、更新、下线和恢复，无须重新部署已有文件；升级只改变返回链接的形式，不生成新站点。列表与离线查询也将旧登记链接展示为目录形式，仍不额外访问云端核验。
+
 > 更新之前从 `/absolute/path/report.html` 发布的页面。
 
-先调用 `get_html({"localPath":"/absolute/path/report.html"})`，再将返回的 `siteId`、当前 `sha256` 作为更新目标和 `expectedSha256`。如果没有登记，询问已知 ID 或确认用户确实想新建，不把更新请求静默改成首次发布。
+用户要更新该文件的当前默认站点时，调用 `get_html({"localPath":"/absolute/path/report.html"})`，再将返回的 `siteId`、当前 `sha256` 作为更新目标和 `expectedSha256`。如果同一文件已通过 `newPage` 发布成多个站点，要更新较早的页面，请直接提供它的 ID 或 URL；按文件路径查询不会自动选中历史站点。如果没有登记，询问已知 ID 或确认用户确实想新建，不把更新请求静默改成首次发布。
 
 Agent 的顺序为：
 
-1. 用登记路径调用 `get_html`；文件已移动或换了机器时使用已知 ID。
+1. 用户指定了 ID/URL 时按该目标调用 `get_html`；仅在目标是文件当前默认站点时按登记路径查询。
 2. 用新文件路径、同一 ID 和查询返回的旧哈希调用 `publish_html`。
 3. 检查结果；若发生冲突，重新查询并核对目标，再决定后续操作。
 
-只有 URL 时，调用 `get_html({"siteUrl":"https://your-domain.example/sites/s_REPLACE_WITH_VALID_ID/"})`，将域名和 ID 替换为实际地址；随后携带 `siteUrl`、`localPath` 和旧哈希更新。仅接受规范 HTTPS 站点路径，可带片段、不带查询参数；输入路径和规范 `index.html` 路径均须映射到当前环境托管资源。路由查询不完整会拒绝，路径绑定冲突也需先解决。
+只有 URL 时，调用 `get_html({"siteUrl":"https://your-domain.example/sites/s_REPLACE_WITH_VALID_ID/"})`，将域名和 ID 替换为实际地址；随后携带 `siteUrl`、`localPath` 和旧哈希更新。仅接受规范 HTTPS 站点路径，可带片段、不带查询参数；输入路径和规范 `index.html` 路径均须映射到当前环境托管资源。路由查询不完整会拒绝。
 
 分享前按状态判断：
 
@@ -255,6 +257,12 @@ Agent 的顺序为：
 > 使用 `/absolute/path/report.html` 恢复该离线页面，保持原 URL。
 
 用站点 ID 或已核验 URL，加上本次指定文件调用 `online_html`。要求有本地离线登记，文件存在且云端当前对象不存在；对象意外出现时返回冲突。先完成待处理清理；前次恢复已写入相同内容但结果不确定时，可核验完成。已在线页面按正常流程更新。
+
+**同一文件对应多个站点：**当前源码已修复这一场景，尚未包含在 npm beta.2 中。明确提供 A 的 `siteId` 或 `siteUrl` 时，可用默认绑定到 B 的文件更新或恢复 A；B 的内容、生命周期和默认绑定均不变。之后只按文件路径查询，仍会找到 B；继续管理 A 请保留 A 的 ID/URL。返回的 `pathBinding` 说明文件的默认绑定，顶层 `siteId` 才是本次目标。只有 `newPage` 或完成对应 pending 新建才切换已有默认绑定。
+
+如果 beta.2 报 `LOCAL_BINDING_CONFLICT`，不要下线其他站点或直接编辑 `catalog-v2.json`；下线保留路径绑定。可让用户指定一份放在未登记路径的 HTML 副本，再用原站点 ID 恢复，或待修复版发布后升级。
+
+恢复前置检查失败时，按具体错误修正：文件缺失或 HTML 无效先处理本地文件；登记锁占用先等待写入结束；凭据/托管错误先修正配置。当前机器没有目标的离线登记时不能自动认领，不将恢复请求改成另建站点。写入结果不确定时，应先查询原目标，再决定是否重试原恢复操作。
 
 云端成功、本地终写警告时，查询后重试同一操作，不另建 ID。列表、下线和恢复要求本地登记启用；`off` 会关闭它们。进程退出留下的环境锁，只能在确认没有写入者后人工清理。
 

@@ -4,7 +4,7 @@
 
 让桌面 AI Agent 将本地 HTML 发布到你自己的 CloudBase 环境，持续更新同一 URL，也能下线并从本地文件恢复。
 
-**v0.4.0-beta.1：公开测试版。** 本地 STDIO MCP · 六工具 · MIT。桌面客户端实测仍待完成；Windows 存在未解决的 CI 失败，见 [验证状态](PROJECT.md#v04-验证与发布安排)。
+**v0.4.0-beta.1：公开测试版。** 本地 STDIO MCP · 六工具 · MIT。当前源码已通过 macOS/Windows CI，相关修复尚未发布到 npm；桌面客户端实测仍待完成。见 [验证状态](PROJECT.md#v04-验证与发布安排)。
 
 ## 快速接入
 

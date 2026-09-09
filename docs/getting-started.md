@@ -6,7 +6,7 @@
 
 **准备 Node.js → 放好完整配置文件 → 在桌面 Agent 中添加 MCP → 验证 → 开始使用。**
 
-当前 v0.4 为 **0.4.0-beta.1 公开测试版**，桌面客户端验收尚未完成。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。
+当前 v0.4 为 **0.4.0-beta.1 公开测试版**，桌面客户端验收尚未完成。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。Windows 的 CI 测试尚未全部通过，当前属于待验收接入方式，见 [验证状态](../PROJECT.md#ci-首次运行记录)。
 
 你需要支持本地 STDIO MCP 的桌面客户端，以及已开启静态托管的 CloudBase 环境。管理员可以直接提供下述完整文件；收到文件后，无需 CloudBase 账号登录或重填三个参数。人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
 
@@ -113,7 +113,7 @@ Agent 或用户可在 macOS 终端执行下列一次性命令；它只创建缺�
 
 让 Agent 帮忙接入时，可以复制：
 
-> 阅读 https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md ，帮我接入 cloudbase_html MCP。复用已有 Node 和管理员提供的完整 credentials.env，帮助放到固定位置，不让我拆分或重填 Key。使用对应系统和客户端的固定版本配置，保留其他连接器，完成 hosting_status 与 list_html 只读验证，不发布页面。如果指定 npm 版本未发布，明确说明并使用我提供的本地安装包或源码，不另装其他包。
+> 阅读 https://github.com/zyfasos/cloudbase-html-mcp/blob/main/docs/getting-started.md ，帮我接入 cloudbase_html MCP。复用已有 Node 和管理员提供的完整 credentials.env，帮助放到固定位置，不让我拆分或重填 Key。使用对应系统和客户端的固定版本配置，保留其他连接器，完成 hosting_status 与 list_html 只读验证，不发布页面。如果指定 npm 版本未发布，明确说明并使用我提供的本地安装包或源码，不另装其他包。
 
 已有本地检出时，可将上述链接替换为本仓库的 `docs/getting-started.md`。
 
@@ -129,6 +129,8 @@ Agent 或用户可在 macOS 终端执行下列一次性命令；它只创建缺�
 | `cloudbase-html-mcp serve`，或不传子命令 | 用户主目录下的默认 credentials.env |
 | `cloudbase-html-mcp serve --config "/absolute/private/credentials.env"` | 仅使用指定私密文件 |
 | `cloudbase-html-mcp serve --env` | 仅使用五个受支持的 CloudBase 环境变量 |
+
+Windows 的配置文件绝对路径不能包含 `..` 路径段；使用默认位置或不含父目录跳转的完整路径。
 
 `--config` 与 `--env` 互斥。文件缺失或无效时不回退到继承的环境变量，不混合不同来源的字段。新入口要求每行一个赋值，支持注释及引号值，拒绝语法错误或重复字段。配置在进程启动时读取；修改或替换后重载 MCP。`--help`、`--version` 不需要凭据，也不连接云端。
 
@@ -154,18 +156,21 @@ npx -y cloudbase-html-mcp@0.4.0-beta.1 setup
 <a id="install-from-source-or-a-local-package"></a>
 ### 从源码或本地安装包接入
 
-本次 beta 先通过 npm 分发，GitHub main 尚不包含本轮 v0.4 改动。普通接入优先使用 npm；只有已取得 v0.4 源码目录时，才进入该目录运行下列命令，不覆盖本地工作：
+普通接入优先使用 npm。需要开发或排错时，获取本仓库包含 v0.4 的源码，进入项目根目录运行下列命令；已有检出先保留本地改动，再核对版本：
 
 ```sh
 npm ci --ignore-scripts
+npm run test:prepare
 npm run check
 npm test
 node bin/cli.mjs --version
 ```
 
+`npm run test:prepare` 会从 npm 下载测试安装所需内容，保存到仓库内已忽略的 `artifacts/test-npm-cache/`，不访问 CloudBase；随后 `npm test` 使用该缓存离线验证真实安装包。依赖变更或清理缓存后重新准备。
+
 v0.4 使用 `npm-shrinkwrap.json`。仍处于 v0.3 的检出不包含新 CLI，应使用实际的 v0.4 源码或提供的安装包，不另建空项目替代。源码向导仍可通过 `npm run setup` 使用；它生成的 npx 配置要求对应版本已发布，本地开发时改用下述源码入口。
 
-客户端的 `command` 使用 Node 的绝对路径，可通过 `node -p 'process.execPath'` 获取；参数中的示例路径替换为实际位置：
+客户端的 `command` 使用 Node 的绝对路径，可通过 `node -p "process.execPath"` 获取；参数中的示例路径替换为实际位置：
 
 ```json
 ["/absolute/path/to/cloudbase-html-mcp/bin/cli.mjs", "serve"]
@@ -295,11 +300,13 @@ node --env-file="/absolute/private/cloudbase-html.env" scripts/cleanup-snapshots
 | `CONFIG_REQUIRED` / 无效字段 | 修正选定文件中列出的字段；`--env` 模式则修改客户端变量，不跨来源补值。 |
 | `CONFIG_FILE_UNREADABLE` / 权限错误 | 检查所有者及可读性，优先标准用户目录；自动权限处理仅限默认位置。 |
 | `CONFIG_PATH_REDIRECTED` / 文件链接 | 使用标准位置的普通文件，或显式指定受支持的私密路径，不用符号链接重定向默认目录。 |
+| `INVALID_CONFIG_PATH` | 使用完整文件绝对路径；Windows 不接受 `..` 路径段，不通过路径拼接猜测配置位置。 |
 | `CONFIG_INSIDE_REPOSITORY` | 将配置放到 Git 仓库之外，不关闭保护。 |
 | 凭据交换失败 | 检查 Key 类型、完整值、有效期及对应环境/地域，改正后重载，不自动切环境。 |
 | 静态托管失败 | 检查选定环境的托管状态，资源开通由环境所有者单独操作。 |
 | 独立检查通过，桌面客户端没有工具 | 检查实际客户端条目、命令拆分、PATH 和重载状态。 |
 | `REGISTRY_BUSY` | 等待写入者结束；清理遗留锁前确认没有进程仍在写入。 |
+| `REGISTRY_WRITE_FAILED` | 检查登记目录是否被普通文件占用、权限及磁盘状态；目录错误不会按锁竞争处理。 |
 | `PAGE_OFFLINE` / `PAGE_NOT_OFFLINE` | 离线页显式恢复；在线页通过 publish 更新。 |
 | `CLEANUP_PENDING` | 使用原操作哈希继续下线清理，再恢复。 |
 | `VERSIONING_UNSAFE` / `VERSIONING_UNCONFIRMED` | 请环境所有者检查 Bucket 版本控制；MCP 不自动修改。 |

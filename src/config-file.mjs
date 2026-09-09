@@ -11,6 +11,8 @@ export const setupError = (code) => new PublishError('SETUP', code);
 
 export async function configLocation(file, create = false, { checkPermissions = true } = {}) {
   if (!isAbsolute(file ?? '')) throw setupError('ABSOLUTE_CONFIG_PATH_REQUIRED');
+  // Windows collapses parent segments before resolving links. Reject ambiguous input before I/O.
+  if (process.platform === 'win32' && file.split(/[/\\]/).includes('..')) throw setupError('INVALID_CONFIG_PATH');
   const name = basename(file);
   if (['.', '..'].includes(name) || (process.platform === 'win32' ? /[/\\]$/ : /\/$/).test(file)) {
     throw setupError('INVALID_CONFIG_PATH');

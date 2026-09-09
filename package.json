@@ -11,7 +11,8 @@
     "start": "node src/server.mjs",
     "setup": "node scripts/setup.mjs",
     "test": "node --test test/config-paths.test.mjs test/domains.test.mjs test/lifecycle.test.mjs test/publisher.test.mjs test/recovery.test.mjs test/registry.test.mjs test/review-fixes.test.mjs test/setup.test.mjs test/stdio.test.mjs test/launch.test.mjs test/package.test.mjs",
-    "check": "node --check bin/cli.mjs && node --check src/launch.mjs && node --check src/version.mjs && node --check src/config-file.mjs && node --check src/setup.mjs && node --check scripts/setup.mjs && node --check scripts/start.mjs && node --check scripts/call.mjs && node --check src/errors.mjs && node --check src/cleanup.mjs && node --check scripts/cleanup-snapshots.mjs && node --check src/server.mjs && node --check src/publisher.mjs && node --check src/cloudbase.mjs && node --check src/domains.mjs && node --check src/recovery.mjs && node --check src/registry.mjs"
+    "check": "node --check bin/cli.mjs && node --check src/launch.mjs && node --check src/version.mjs && node --check src/config-file.mjs && node --check src/setup.mjs && node --check scripts/setup.mjs && node --check scripts/start.mjs && node --check scripts/call.mjs && node --check src/errors.mjs && node --check src/cleanup.mjs && node --check scripts/cleanup-snapshots.mjs && node --check src/server.mjs && node --check src/publisher.mjs && node --check src/cloudbase.mjs && node --check src/domains.mjs && node --check src/recovery.mjs && node --check src/registry.mjs && node --check scripts/prepare-test-cache.mjs && node --check test/npm-helper.mjs",
+    "test:prepare": "node scripts/prepare-test-cache.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

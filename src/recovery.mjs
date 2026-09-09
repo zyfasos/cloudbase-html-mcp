@@ -5,7 +5,7 @@ const query = (siteId) => ({ tool: 'get_html', action: 'verify_current', require
 const setupGuide = (configuration) => ({
   configuration: configuration ?? { source: 'default_file', path: join(homedir(), '.config', 'cloudbase-html-mcp', 'credentials.env') },
   local_path: 'docs/getting-started.md',
-  url: `https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@${VERSION}/docs/getting-started.md`,
+  url: 'https://github.com/zyfasos/cloudbase-html-mcp/blob/main/docs/getting-started.md',
   console_url: 'https://tcb.cloud.tencent.com/dev',
   local_setup: { command: `npx -y cloudbase-html-mcp@${VERSION} setup`, cwd: 'any directory', interactive: true, secret_input: 'terminal_only' },
 });

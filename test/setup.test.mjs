@@ -18,7 +18,7 @@ const key = 'offline-wizard-key';
 const values = { CLOUDBASE_ENV_ID: 'wizard-env', CLOUDBASE_REGION: 'ap-shanghai', CLOUDBASE_API_KEY: key };
 const preset = { envId: 'wizard-env', region: 'ap-shanghai' };
 const script = fileURLToPath(new URL('../scripts/setup.mjs', import.meta.url));
-const preload = fileURLToPath(new URL('./fixtures/setup-cloud.mjs', import.meta.url));
+const preload = new URL('./fixtures/setup-cloud.mjs', import.meta.url).href;
 function interaction(answers, verify = async () => ({ domainDiscovery: 'COMPLETE' })) {
   const prompts = [], output = [], checked = [];
   return { prompts, output, checked, ask: async (label, options = {}) => {
@@ -271,7 +271,8 @@ test('generated config starts the production six-tool server and file values ove
     assert.equal(response.structuredContent.publicVerification, 'NOT_TESTED');
     assert.ok(!JSON.stringify(response).includes(key));
     assert.equal(diagnostic, '');
-  } finally { await client.close(); }
+  } catch (error) { t.diagnostic(diagnostic.replaceAll(key, '[redacted]')); throw error; }
+  finally { await client.close(); }
 });
 
 test('legacy launcher still fails closed and configuration recovery makes file placement the primary route', async (t) => {

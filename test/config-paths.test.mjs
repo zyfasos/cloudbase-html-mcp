@@ -19,12 +19,46 @@ async function paths(t) {
   return { root, outside, physical, supplied: outside + '/link/../credentials.env' };
 }
 
-test('symlink plus parent traversal reads, verifies and updates the same physical file, preserving its lexical neighbour', async (t) => {
+test('Windows parent-segment guard rejects both separators before reads, writes or setup checks', async (t) => {
+  const root = await realpath((await fixture(t)).directory);
+  const target = join(root, 'credentials.env');
+  const original = serializeConfig(values);
+  await writeFile(target, original, { mode: 0o600 });
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+  // Exercise the input guard locally too; native Windows path behavior is covered by CI.
+  Object.defineProperty(process, 'platform', { ...platform, value: 'win32' });
+  try {
+    for (const file of [root + '/missing/../credentials.env', root + '\\missing\\..\\credentials.env']) {
+      await assert.rejects(readConfigFile(file), { code: 'INVALID_CONFIG_PATH' });
+      await assert.rejects(saveConfigFile(file, values, null), { code: 'INVALID_CONFIG_PATH' });
+      await assert.rejects(runSetup({ envFile: file }, {
+        ask: async () => assert.fail('must reject before prompting'),
+        verify: async () => assert.fail('must reject before cloud access'),
+      }), { code: 'INVALID_CONFIG_PATH' });
+    }
+  } finally { Object.defineProperty(process, 'platform', platform); }
+  assert.equal(await readFile(target, 'utf8'), original);
+  assert.deepEqual((await readdir(root)).sort(), ['credentials.env', '报告.html'].sort());
+});
+
+test('parent traversal resolves on POSIX or rejects on Windows without modifying the neighbour', async (t) => {
   const { outside, physical, supplied } = await paths(t);
   const target = join(physical, 'credentials.env'), neighbour = join(outside, 'credentials.env');
   await writeFile(target, serializeConfig(values), { mode: 0o600 });
   const other = serializeConfig({ ...values, CLOUDBASE_ENV_ID: 'unrelated-env' });
   await writeFile(neighbour, other, { mode: 0o600 });
+  if (process.platform === 'win32') {
+    await assert.rejects(configLocation(supplied), { code: 'INVALID_CONFIG_PATH' });
+    await assert.rejects(readConfigFile(supplied), { code: 'INVALID_CONFIG_PATH' });
+    await assert.rejects(saveConfigFile(supplied, values, null), { code: 'INVALID_CONFIG_PATH' });
+    await assert.rejects(runSetup({ envFile: supplied }, {
+      ask: async () => assert.fail('must reject before prompting'),
+      verify: async () => assert.fail('must reject before cloud access'),
+    }), { code: 'INVALID_CONFIG_PATH' });
+    assert.equal(await readFile(target, 'utf8'), serializeConfig(values));
+    assert.equal(await readFile(neighbour, 'utf8'), other);
+    return;
+  }
   assert.equal(await configLocation(supplied), await realpath(supplied));
   const before = await readConfigFile(supplied);
   assert.equal(before.values.CLOUDBASE_ENV_ID, 'path-test');
@@ -49,12 +83,13 @@ for (const kind of ['directory', 'worktree']) {
     const original = serializeConfig(values);
     await writeFile(join(physical, 'credentials.env'), original, { mode: 0o600 });
     for (const file of [supplied, outside + '/link/../new/private/credentials.env']) {
-      await assert.rejects(readConfigFile(file), { code: 'CONFIG_INSIDE_REPOSITORY' });
-      await assert.rejects(saveConfigFile(file, values, null), { code: 'CONFIG_INSIDE_REPOSITORY' });
+      const code = process.platform === 'win32' ? 'INVALID_CONFIG_PATH' : 'CONFIG_INSIDE_REPOSITORY';
+      await assert.rejects(readConfigFile(file), { code });
+      await assert.rejects(saveConfigFile(file, values, null), { code });
       await assert.rejects(runSetup({ envFile: file }, {
         ask: async () => assert.fail('must reject before prompting'),
         verify: async () => assert.fail('must reject before cloud access'),
-      }), { code: 'CONFIG_INSIDE_REPOSITORY' });
+      }), { code });
     }
     const launcher = fileURLToPath(new URL('../scripts/start.mjs', import.meta.url));
     const child = spawnSync(process.execPath, [launcher, supplied], { encoding: 'utf8', timeout: 5000 });
@@ -67,10 +102,18 @@ for (const kind of ['directory', 'worktree']) {
   });
 }
 
-test('missing child directories after a resolved symlink/.. use the physical target throughout', async (t) => {
+test('missing child directories after symlink/.. resolve on POSIX or stay untouched on Windows', async (t) => {
   const { outside, physical } = await paths(t);
   const supplied = outside + '/link/../new/private/credentials.env';
   const target = join(physical, 'new/private/credentials.env');
+  if (process.platform === 'win32') {
+    await assert.rejects(configLocation(supplied), { code: 'INVALID_CONFIG_PATH' });
+    await assert.rejects(readConfigFile(supplied), { code: 'INVALID_CONFIG_PATH' });
+    await assert.rejects(saveConfigFile(supplied, values, null), { code: 'INVALID_CONFIG_PATH' });
+    assert.deepEqual(await readdir(outside), ['link']);
+    assert.deepEqual(await readdir(physical), ['nested']);
+    return;
+  }
   assert.equal(await configLocation(supplied), target);
   assert.equal(await readConfigFile(supplied), null);
   assert.equal(await saveConfigFile(supplied, values, null), target);

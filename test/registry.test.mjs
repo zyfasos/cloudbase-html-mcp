@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PageRegistry } from '../src/registry.mjs';
@@ -93,6 +95,24 @@ test('registry directory inside a Git repository or an unwritable target blocks 
   const broken = new Publisher(cloud, cloud.fetch, new PageRegistry(other.registryDir, scope));
   await assert.rejects(broken.publish({ localPath: other.localPath }), { code: 'REGISTRY_WRITE_FAILED' });
   assert.equal(cloud.puts.length, 0);
+});
+
+test('directory creation EEXIST reports write failure, not lock contention, and leaves no lock', async (t) => {
+  const { registryDir, localPath } = await fixture(t);
+  const cloud = new FakeCloud();
+  const registry = new PageRegistry(registryDir, scope);
+  const original = fs.mkdir;
+  const mocked = t.mock.method(fs, 'mkdir', async (path, options) => {
+    if (path === registryDir) throw Object.assign(new Error('simulated directory collision'), { code: 'EEXIST' });
+    return original(path, options);
+  });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(new Publisher(cloud, cloud.fetch, registry).publish({ localPath }), { code: 'REGISTRY_WRITE_FAILED' });
+    assert.equal(cloud.puts.length, 0);
+  } finally { mocked.mock.restore(); syncBuiltinESMExports(); }
+  const acquired = await registry.acquire(localPath);
+  await acquired.release();
 });
 
 test('partial cloud failure retains reserved site ID across a fresh registry', async (t) => {

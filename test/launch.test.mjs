@@ -14,7 +14,7 @@ import { VERSION } from '../src/version.mjs';
 
 const values = { CLOUDBASE_ENV_ID: 'wizard-env', CLOUDBASE_REGION: 'ap-shanghai', CLOUDBASE_API_KEY: 'offline-wizard-key' };
 const cli = fileURLToPath(new URL('../bin/cli.mjs', import.meta.url));
-const preload = fileURLToPath(new URL('./fixtures/setup-cloud.mjs', import.meta.url));
+const preload = new URL('./fixtures/setup-cloud.mjs', import.meta.url).href;
 async function homeFor(t) { return realpath((await fixture(t)).directory); }
 async function configAt(home, text = serializeConfig(values), mode = 0o600) {
   const file = defaultConfigPath(home);
@@ -109,6 +109,7 @@ async function session(t, home, args, connected) {
     cwd: home, env: { HOME: home, USERPROFILE: home, CLOUDBASE_ENV_ID: 'wrong-env', CLOUDBASE_REGION: 'bad-region', CLOUDBASE_API_KEY: 'wrong-key' }, stderr: 'pipe' });
   let diagnostics = ''; transport.stderr.on('data', (chunk) => { diagnostics += chunk; });
   try { await client.connect(transport); await connected(client); }
+  catch (error) { t.diagnostic(diagnostics.replaceAll(values.CLOUDBASE_API_KEY, '[redacted]')); throw error; }
   finally { await client.close(); }
   assert.ok(!diagnostics.includes(values.CLOUDBASE_API_KEY));
 }

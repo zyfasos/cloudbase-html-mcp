@@ -1,6 +1,6 @@
 # 架构说明与关键时序
 
-本文描述 v0.4 beta 的结构；发布和桌面实测状态见 PROJECT。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，中文首页见 [README](../README.md)，另有 [英文简要介绍](../README.en.md)。
+本文描述 v0.4 beta 的结构；发布和桌面实测状态见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，中文首页见 [README](../README.md)，另有 [英文简要介绍](../README.en.md)。
 
 ## 1. 总览
 
@@ -70,7 +70,7 @@ sequenceDiagram
 
 下图展示显式路径启动；Windows 标准位置可使用无路径参数的 serve。
 
-管理员提供环境 ID、地域及 API Key，接收者无需 CloudBase 账号登录。向导不使用继承的 CloudBase 环境变量作为隐式输入；连接 JSON 仅允许 envId、region。已有文件默认复用，edit 才修改，旧 Key 和可选配置可保留。确认目标后，只读检查成功才保存；失败/取消保留原文件。原子替换前使用排他文件锁并比较原内容，避免多个向导互相覆盖；崩溃遗留锁需人工核对后清理。配置路径先按文件系统解析目录符号链接，再处理父目录语义，检查与读写统一使用物理目标；缺失目录后的 .. 无法明确定位时拒绝，不静默改指相邻文件。文件不进入 Git，POSIX 私密目录 0700、文件 0600；Windows ACL 由用户管理。
+管理员提供环境 ID、地域及 API Key，接收者无需 CloudBase 账号登录。向导不使用继承的 CloudBase 环境变量作为隐式输入；连接 JSON 仅允许 envId、region。已有文件默认复用，edit 才修改，旧 Key 和可选配置可保留。确认目标后，只读检查成功才保存；失败/取消保留原文件。原子替换前使用排他文件锁并比较原内容，避免多个向导互相覆盖；崩溃遗留锁需人工核对后清理。POSIX 配置路径先按文件系统解析目录符号链接，再处理父目录语义，检查与读写统一使用物理目标；缺失目录后的 .. 无法明确定位时拒绝。Windows 在任何文件读写前拒绝含 .. 的配置路径，避免与 POSIX 不同的归一化顺序选中相邻文件；普通绝对路径及显式目录别名继续使用。修正的远端验证状态见 [CI 记录](../PROJECT.md#ci-首次运行记录)。文件不进入 Git，POSIX 私密目录 0700、文件 0600；Windows ACL 由用户管理。
 
 ```mermaid
 sequenceDiagram
@@ -120,12 +120,13 @@ get_html 对已知 ID 或已核实 URL 的本地元数据读取采用可选策�
 ## 4. 本地与云端数据
 
 - 当前对象：`sites/<siteId>/index.html`，更新覆盖同一路径；域名映射不变则 URL 不变。
-- v0.3 不创建云端快照；旧版快照 `deployments/<siteId>/<sha256>/index.html` 只供指定范围清理。
+- 自 v0.3 起不创建云端快照；旧版快照 `deployments/<siteId>/<sha256>/index.html` 只供指定范围清理。
 - 默认登记目录：用户目录下 `.config/cloudbase-html-mcp/pages/`；可配置仓库外绝对目录或 off。
 - 每环境/地域的文件名由二者哈希加 .catalog-v2.json 组成，内含 version、scope、sites 和 bindings。
 - sites 按 siteId 保存 sha256、url、localPaths、sourcePaths、lifecycle、verifiedAt、updatedAt、state、operation。localPaths 从当前 bindings 生成，仅含可操作选择器；sourcePaths 是历史来源，不代表当前绑定或内容备份。
 - bindings 保存规范化绝对路径的当前 siteId 和可选 pendingSiteId；当前与 pending 站点都在 sites 中保留。
 - 文件 0600、新目录 0700；环境排他锁使用 wx，临时文件写入并 fsync 后 rename，站点记录与路径绑定一同提交。
+- 目录准备失败返回 REGISTRY_WRITE_FAILED；只有锁文件已存在才返回 REGISTRY_BUSY。
 - 本机同目录、同环境写入互斥；不同机器或不同目录不互斥，也不构成云端原子 CAS。
 
 v1 哈希路径文件兼容只读；首次写操作持锁将其迁入 v2，旧文件保留但不再作为状态源。原绑定和 pending 均保留，相同站点合并路径；冲突哈希置为 null，保留 conflictingHashes，要求后续云端核对，不按遍历顺序选值。未核验旧记录 lifecycle 为 null。迁移后不要再运行 v0.2 写入者。
@@ -257,10 +258,10 @@ sequenceDiagram
 | `recovery.test.mjs` | 配置引导及恢复建议 |
 | `stdio.test.mjs` | 六工具完整流程、重启/退出恢复、符号链接入口 |
 
-自动化测试默认离线：STDIO 使用真实子进程和官方 SDK，云端是替身，文件系统使用真实临时文件。2026-09-09 另经用户授权，以合成页面完成真实连接、ID/路径/URL 查询、固定 URL 更新、冲突保护、下线删除、公网 404、重启目录读取和恢复；站点最终仅有当前 HTML，没有项目快照。程序请求观察到 attachment，浏览器自动化未完成导航；用户随后提供的 Chrome 截图确认原 URL 正常渲染恢复后的 v2。保留两类证据，不将自动化失败或下载头推断成所有浏览器无法展示；已有快照删除及故障恢复等仍只有离线证据，不能将本轮正常流程实测泛化到全部边界。
+开发与 CI 先运行 npm run test:prepare，通过实际 tarball 安装准备独立 npm 缓存；该准备步骤允许 npm 网络请求，不访问云端环境。npm test 保持离线，不借用个人默认缓存。测试预加载模块通过 file: URL 传给 --import，兼容 Windows 盘符、空格和中文路径；启动失败输出经过脱敏的子进程诊断。STDIO 使用真实子进程和官方 SDK，云端是替身，文件系统使用真实临时文件。以下为 v0.3 的历史云端验收，不能替代 v0.4 安装包验收：2026-09-09 另经用户授权，以合成页面完成真实连接、ID/路径/URL 查询、固定 URL 更新、冲突保护、下线删除、公网 404、重启目录读取和恢复；站点最终仅有当前 HTML，没有项目快照。程序请求观察到 attachment，浏览器自动化未完成导航；用户随后提供的 Chrome 截图确认原 URL 正常渲染恢复后的 v2。保留两类证据，不将自动化失败或下载头推断成所有浏览器无法展示；已有快照删除及故障恢复等仍只有离线证据，不能将本轮正常流程实测泛化到全部边界。
 
 修改行为需补回归并运行 npm run check 与 npm test；同步中文 README、快速开始及本文；英文概览仅维护必要事实和入口，不作全文对译。规划放在 [PROJECT.md](../PROJECT.md)，不能画成已实现组件。
 
 ## 9. 分发边界
 
-包元数据为版本唯一来源；bin 提供稳定入口，白名单限制发布内容，npm-shrinkwrap.json 锁定传递依赖。凭据与目录在用户主目录，不随安装位置移动。测试版本为 0.4.0-beta.1，按 beta 标签分发；客户端模板固定该版本。macOS/Windows Node 22/24 工作流只执行离线检查，不含发布或云端凭据。现有 v0.3 实测不替代 v0.4 客户端与 Windows 验收。
+包元数据为版本唯一来源；bin 提供稳定入口，白名单限制发布内容，npm-shrinkwrap.json 锁定传递依赖。凭据与目录在用户主目录，不随安装位置移动。测试版本为 0.4.0-beta.1，按 beta 标签分发；客户端模板固定该版本。macOS/Windows Node 22/24 工作流先安装依赖并准备 npm 缓存，再执行离线检查；不含发布或云端凭据。现有 v0.3 实测不替代 v0.4 客户端与 Windows 验收。

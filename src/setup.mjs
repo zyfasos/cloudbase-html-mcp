@@ -154,7 +154,7 @@ export function setupFailure(error) {
     UNSAFE_WINDOWS_CONFIG_PATH: 'Windows 自定义配置路径包含命令解释字符；请使用默认用户目录，或无这些字符的专用绝对路径。',
     PRIVATE_FILE_REQUIRED: '请在 macOS/Linux 将指定配置文件权限设为 0600，且确保归当前用户所有。',
     CONFIG_INSIDE_REPOSITORY: '请用 --config 指定 Git 仓库外的私密文件。',
-    INVALID_CONFIG_PATH: '请指定可明确解析的文件绝对路径；不要以斜线、. 或 .. 结尾，也不要在不存在的目录后使用 ..。',
+    INVALID_CONFIG_PATH: '请指定可明确解析的文件绝对路径；不要以斜线、. 或 .. 结尾，也不要在不存在的目录后使用 ..。Windows 配置路径不能包含 .. 路径段。',
     SETUP_BUSY: '另一个向导正在保存；进程退出后遗留的 .lock 需确认没有写入者再移除。',
     EXISTING_CONFIG_CONFLICT: '预填环境与已有文件不同；重新运行并选择 edit，或指定新的 --config。',
     CONFIG_CHANGED: '配置在接入过程中被其他进程修改；重新运行并核对。',

@@ -2,26 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile, readFile, realpath, rm, cp } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { fixture } from './helpers.mjs';
 import { VERSION } from '../src/version.mjs';
 import { defaultConfigPath } from '../src/launch.mjs';
-
-const root = fileURLToPath(new URL('../', import.meta.url));
-function npm(args, cwd) {
-  const env = { ...process.env };
-  // npm run forwards this policy as an env flag; npm 11 rejects it on nested project installs.
-  delete env.npm_config_allow_scripts;
-
-  const result = process.env.npm_execpath
-    ? spawnSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, env, encoding: 'utf8', timeout: 120000 })
-    : spawnSync(process.platform === 'win32' ? 'cmd.exe' : 'npm', [...(process.platform === 'win32' ? ['/d', '/c', 'npm'] : []), ...args], { cwd, env, encoding: 'utf8', timeout: 120000 });
-  assert.equal(result.status, 0, result.stderr);
-  return result.stdout;
-}
+import { npm, root } from './npm-helper.mjs';
 
 test('packed artifact installs offline, preserves default config and catalog across reinstall, and runs the six-tool lifecycle', { timeout: 180000 }, async (t) => {
   const temporary = await realpath((await fixture(t)).directory);
@@ -56,7 +43,7 @@ test('packed artifact installs offline, preserves default config and catalog acr
   const credentials = 'CLOUDBASE_ENV_ID=package-env\nCLOUDBASE_REGION=ap-shanghai\nCLOUDBASE_API_KEY=offline-package-key\n';
   await writeFile(file, credentials, { mode: 0o600 });
   const html = join(home, '测试 页面.html'); await writeFile(html, '<html>package v1</html>');
-  const preload = fileURLToPath(new URL('./fixtures/packaged-cloud.mjs', import.meta.url));
+  const preload = new URL('./fixtures/packaged-cloud.mjs', import.meta.url).href;
   async function session(callback) {
     const client = new Client({ name: 'packed-artifact', version: '1.0.0' });
     const transport = new StdioClientTransport({ command: process.execPath,
@@ -65,6 +52,7 @@ test('packed artifact installs offline, preserves default config and catalog acr
         CLOUDBASE_ENV_ID: 'inherited-wrong', CLOUDBASE_API_KEY: 'wrong', CLOUDBASE_REGION: 'wrong' }, stderr: 'pipe' });
     let stderr = ''; transport.stderr.on('data', (b) => { stderr += b; });
     try { await client.connect(transport); await callback(client); }
+    catch (error) { t.diagnostic(stderr.replaceAll('offline-package-key', '[redacted]')); throw error; }
     finally { await client.close(); }
     assert.ok(!stderr.includes('offline-package-key'));
   }

@@ -159,6 +159,11 @@ export class PageRegistry {
     try {
       await outsideRepository(this.directory);
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
+    } catch (e) {
+      if (e instanceof PublishError) throw e;
+      throw error('REGISTRY_WRITE_FAILED');
+    }
+    try {
       const handle = await open(lock, 'wx', 0o600);
       await handle.close();
     } catch (e) {

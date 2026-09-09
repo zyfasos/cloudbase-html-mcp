@@ -22,7 +22,7 @@ test('registration survives a new publisher and resolves current cloud hash, nev
   assert.equal(found.sha256, sha256(changed));
   assert.equal((await registry.lookup(localPath)).sha256, first.sha256);
   const recordFile = registry.file;
-  assert.equal((await stat(recordFile)).mode & 0o777, 0o600);
+  if (process.platform !== 'win32') assert.equal((await stat(recordFile)).mode & 0o777, 0o600);
   assert.deepEqual((await readdir(registryDir)).filter((x) => !x.endsWith('.json')), []);
 });
 

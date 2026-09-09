@@ -36,13 +36,13 @@ test('prefilled setup needs only hidden key and confirmation, saves private conf
   assert.equal(io.prompts.length, 2);
   assert.equal(io.prompts[0].secret, true);
   assert.equal(io.checked[0].apiKey, key);
-  assert.deepEqual(parseEnv(await readFile(envFile, 'utf8')), Object.assign(Object.create(null), values));
+  assert.deepEqual({ ...parseEnv(await readFile(envFile, 'utf8')) }, values);
   if (process.platform !== 'win32') {
     assert.equal((await lstat(envFile)).mode & 0o777, 0o600);
     assert.equal((await lstat(join(envFile, '..'))).mode & 0o777, 0o700);
   }
   assert.ok(!JSON.stringify({ result, output: io.output, prompts: io.prompts }).includes(key));
-  assert.equal(result.json.mcpServers.cloudbase_html.args[1], result.envFile);
+  assert.equal(result.json.mcpServers.cloudbase_html.args.at(-1), result.envFile);
   assert.ok(result.toml.includes('offline_html'));
 });
 
@@ -253,7 +253,7 @@ test('CLI rejects key arguments, duplicate/unknown flags and pipes without expos
 test('generated config starts the production six-tool server and file values override inherited CloudBase settings', async (t) => {
   const envFile = await pathFor(t);
   await saveConfigFile(envFile, values, null);
-  const entry = clientConfiguration(envFile).json.mcpServers.cloudbase_html;
+  const entry = { command: process.execPath, args: [fileURLToPath(new URL('../bin/cli.mjs', import.meta.url)), 'serve', '--config', envFile] };
   const client = new Client({ name: 'wizard-integration', version: '1.0.0' });
   const transport = new StdioClientTransport({ ...entry, args: ['--import', preload, ...entry.args],
     env: { CLOUDBASE_ENV_ID: 'wrong-env', CLOUDBASE_REGION: 'wrong-region', CLOUDBASE_API_KEY: 'wrong-key',
@@ -274,14 +274,16 @@ test('generated config starts the production six-tool server and file values ove
   } finally { await client.close(); }
 });
 
-test('launcher failure leaves stdout empty and missing-config recovery points to the terminal wizard', async (t) => {
+test('legacy launcher still fails closed and configuration recovery makes file placement the primary route', async (t) => {
   const envFile = await pathFor(t);
-  const entry = clientConfiguration(envFile).json.mcpServers.cloudbase_html;
+  const entry = { command: process.execPath, args: [fileURLToPath(new URL('../scripts/start.mjs', import.meta.url)), envFile] };
   const child = spawnSync(entry.command, entry.args, { encoding: 'utf8' });
   assert.equal(child.status, 1);
   assert.equal(child.stdout, '');
   assert.match(child.stderr, /npm run setup/);
   const step = recoveryFor(new PublishError('CONFIG', 'CONFIG_REQUIRED')).next_step;
+  assert.equal(step.setup_guide.configuration.source, 'default_file');
+  assert.match(step.message, /credentials.env/);
   assert.equal(step.setup_guide.local_setup.interactive, true);
   assert.equal(step.setup_guide.local_setup.secret_input, 'terminal_only');
   await saveConfigFile(envFile, values, null);

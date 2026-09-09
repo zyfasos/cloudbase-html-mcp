@@ -1,4 +1,5 @@
 // A one-shot protocol client, also usable to verify the server outside an IDE.
+import { VERSION } from '../src/version.mjs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,7 @@ const env = {};
 for (const name of ['CLOUDBASE_ENV_ID', 'CLOUDBASE_REGION', 'CLOUDBASE_API_KEY', 'CLOUDBASE_PUBLIC_BASE_URL', 'CLOUDBASE_REGISTRY_DIR']) {
   if (process.env[name]) env[name] = process.env[name];
 }
-const client = new Client({ name: 'cloudbase-html-cli', version: '0.3.0' });
+const client = new Client({ name: 'cloudbase-html-cli', version: VERSION });
 const transport = new StdioClientTransport({ command: process.execPath,
   args: configFile ? [fileURLToPath(new URL('./start.mjs', import.meta.url)), configFile]
     : [fileURLToPath(new URL('../src/server.mjs', import.meta.url))], env, stderr: 'inherit' });

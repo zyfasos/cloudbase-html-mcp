@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "cloudbase_html": {
+      "command": "cmd.exe",
+      "args": [
+        "/d",
+        "/c",
+        "npx",
+        "-y",
+        "cloudbase-html-mcp@0.4.0-beta.1",
+        "serve"
+      ]
+    }
+  }
+}

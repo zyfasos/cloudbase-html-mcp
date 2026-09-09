@@ -185,7 +185,7 @@ test('legacy migration keeps current and pending IDs, merges paths, and flags co
   assert.equal((await registry.lookup(localPath)).lifecycle, null);
   const lock = await registry.acquire();
   await lock.release();
-  assert.equal((await stat(registry.file)).mode & 0o777, 0o600);
+  if (process.platform !== 'win32') assert.equal((await stat(registry.file)).mode & 0o777, 0o600);
   const migrated = await registry.readCatalog();
   assert.equal(migrated.sites[id('a')].sha256, null);
   assert.deepEqual(migrated.sites[id('a')].localPaths.sort(), paths.sort());

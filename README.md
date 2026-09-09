@@ -1,76 +1,67 @@
 # CloudBase HTML MCP
 
-English | [简体中文](README.zh-CN.md)
+简体中文 | [English](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/README.en.md)
 
-Publish a local HTML file to your own CloudBase environment through your AI agent. Get a shareable URL, update the same page, and take it offline or restore it from a local file.
+让桌面 AI Agent 将本地 HTML 发布到你自己的 CloudBase 环境，持续更新同一 URL，也能下线并从本地文件恢复。
 
-**v0.3.0** · Local STDIO MCP · Six tools · MIT · No CloudBase CLI or full plugin required.
+**v0.4.0-beta.1：公开测试版。** 本地 STDIO MCP · 六工具 · MIT。桌面客户端实测仍待完成。
 
-## Quick start
+## 快速接入
 
-You need **Node.js 22+**, a client supporting local STDIO MCP, and a CloudBase environment with static hosting enabled. Prepare its **environment ID, region and server-side environment API Key**. Recipients of an administrator-issued Key do not need a CloudBase login. Starting from scratch? See [CloudBase preparation](docs/getting-started.md#new-to-cloudbase).
+主线是 **Node.js 22+ → 放好完整配置文件 → 添加 MCP → 验证**。首次使用可先看 [Node 安装说明](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md#prepare-node)。无需 CloudBase CLI；管理员发 Key 的用户无需 CloudBase 登录，也不必经过终端向导。
 
-### Let your agent set it up
+1. 向管理员领取已填好的 `credentials.env`，或自行填写 [模板](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/templates/credentials.env.example) 中的环境 ID、地域和管理端 API Key。从零准备 CloudBase 请看 [首次准备](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md#new-to-cloudbase)。
+2. 放到自己用户主目录下的 `.config/cloudbase-html-mcp/credentials.env`。[放置说明](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md#for-the-recipient) 包含 Finder 和 Windows 资源管理器操作，不需要在每个客户端重填三个值。
+3. 添加名为 `cloudbase_html` 的本地 **STDIO** MCP。按 [客户端指南](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/clients.md) 接入 QoderWork、豆包工作、WorkBuddy 或千问办公；提供完整 JSON、整条命令和分离参数三种形式。
+4. 重载 MCP，确认六工具可见，调用 `hosting_status` 和 `list_html`。核对目标环境，新用户列表为空属于正常；这些检查不会发布页面。
 
-Copy this request to your local coding agent:
-
-> Read https://raw.githubusercontent.com/zyfasos/cloudbase-html-mcp/main/docs/getting-started.md and install and register cloudbase_html in my MCP client. Reuse existing setup and administrator-provided connection information. Have me enter the API Key in the local terminal wizard, not in chat. Ask together for missing client or non-secret connection information. Verify the connection without publishing a page.
-
-### Install manually
-
-For a new installation, run these commands in your chosen parent directory. Reuse an existing checkout if you have one.
+macOS 使用以下固定版本命令：
 
 ```sh
-git clone https://github.com/zyfasos/cloudbase-html-mcp.git
-cd cloudbase-html-mcp
-npm ci --ignore-scripts
-npm run setup
+npx -y cloudbase-html-mcp@0.4.0-beta.1 serve
 ```
 
-The wizard asks for connection details, hides Key input, and runs a read-only check. It saves credentials in a private file outside Git and prints JSON/TOML client configuration without the Key. Merge that entry into your client, reload it, and call `hosting_status`. Setup is complete when all six tools are available and that call succeeds.
+Windows 使用 [对应模板](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/templates/mcp.windows.json) 的命令包装。也可使用 [源码或本地安装包](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md#install-from-source-or-a-local-package)。Node 需要预先可用，npm 包不内置运行时。
 
-See [Getting started](docs/getting-started.md) for configuration examples and troubleshooting. Installation is from source; no npm package is published.
+接入后，可以对 Agent 说：
 
-Once connected, ask your agent to publish a file you choose:
+> 将 `/absolute/path/report.html` 发布到我配置的 CloudBase 环境，给我链接和验证结果。
 
-> Publish `/absolute/path/report.html` to my configured CloudBase environment and give me its URL and verification result.
+## 工具
 
-## Tools
-
-| Tool | Purpose |
+| 工具 | 用途 |
 | --- | --- |
-| `hosting_status` | Check credentials and static hosting; report whether local registration is enabled. Uploads and deletions remain untested. |
-| `publish_html` | Publish a local HTML file or update an online page. |
-| `get_html` | Query by site ID, URL or registered local path, including cloud content and public verification. |
-| `list_html` | List locally known sites and their last confirmed state. |
-| `offline_html` | Delete the site's current cloud HTML and legacy snapshots, keeping local registration. |
-| `online_html` | Restore a registered offline site from a file you explicitly choose. |
+| `hosting_status` | 检查凭据/托管，报告配置来源与登记设置；上传和删除权限仍未测试。 |
+| `publish_html` | 发布指定本地 HTML，或更新在线页面。 |
+| `get_html` | 按 ID、URL 或登记路径查询，包括云端内容与公网验证。 |
+| `list_html` | 列出本地已知站点及最近确认状态。 |
+| `offline_html` | 删除当前云端 HTML 和旧快照，保留本地登记。 |
+| `online_html` | 从本次明确指定的文件恢复已登记离线站点。 |
 
-To update or take a page offline, query it first and pass the returned hash to protect against conflicting changes. Updates and restoration keep the original URL while its domain mapping stays unchanged. See [usage examples](docs/getting-started.md#6-first-use) and [tool contracts (中文)](docs/architecture.md#3-工具契约); MCP clients also receive parameter descriptions through tool discovery.
+更新或下线前先查询并传入返回的哈希。域名映射不变时 URL 保持不变。详见 [示例](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md#6-first-use) 和 [工具契约](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/architecture.md#3-工具契约)；MCP 工具发现也会提供参数说明。
 
-## Before you publish
+## 发布前须知
 
-- **One HTML file:** an absolute `.html`/`.htm` path, nonempty UTF-8, at most 5 MiB. Associated local assets are not uploaded; inline them or use reachable URLs.
-- **Local files remain the source:** the MCP does not back up HTML or create new project snapshots in COS. Listing, offline and restore require the local registry; it is not synchronized across machines.
-- **Offline deletes cloud content:** keep your local file for restoration. Native COS Bucket versioning is separate; enabled, suspended or unconfirmed versioning blocks destructive cleanup. Existing project snapshots are not removed by ordinary updates.
-- **Upload and public access are separate:** `PUBLISHED` means public HTML verification passed; `PUBLISHED_PREVIEW` means matching content with a default-domain preview restriction, such as an attachment header; `UPLOADED_NOT_PUBLICLY_VERIFIED` means storage succeeded but public access remains unverified. Default domains may show a notice or trigger a download. See [result handling](docs/getting-started.md#update-an-existing-page).
+- 单份非空 UTF-8 `.html`/`.htm` 文件，绝对路径，最多 5 MiB；关联的本地资源不会上传。
+- 本地文件是内容来源。不备份 HTML、不新增项目快照；列表/下线/恢复依赖本地登记，不跨机器同步。
+- 下线删除云端内容，请保留本地文件以便恢复。COS 原生版本控制是独立机制；启用、暂停或无法核实时阻止破坏性清理。普通更新不清理旧快照。
+- 存储成功与公网验证分开。`PUBLISHED` 表示公网 HTML 校验通过；`PUBLISHED_PREVIEW` 表示内容一致但有默认域名预览限制；`UPLOADED_NOT_PUBLICLY_VERIFIED` 表示公网尚未验证。默认域名可能出现提示页或触发下载。
 
-## Documentation
+## 文档与开发
 
-- [Getting started](docs/getting-started.md): shared guide for people and agents, setup, first use and troubleshooting.
-- [Architecture and tool contracts (中文)](docs/architecture.md): components, parameters, storage, lifecycle sequences and test coverage.
-- [Upgrading from v0.2 and legacy cleanup](docs/getting-started.md#existing-v02-installations).
-- [Project scope and next steps (中文)](PROJECT.md).
-
-## Development
+- [快速开始](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md)：管理员/收件人流程、可选向导、其他安装方式及排错。
+- [桌面客户端](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/clients.md)：手工接入与实际兼容性状态。
+- [架构说明](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/architecture.md)：配置、契约、生命周期时序及验证。
+- [旧快照清理](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/docs/getting-started.md#existing-v02-installations) · [项目边界与验证状态](https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@0.4.0-beta.1/PROJECT.md)。
 
 ```sh
+npm ci --ignore-scripts
 npm run check
 npm test
 ```
 
-Tests are offline by default, including real STDIO subprocess tests using the official MCP SDK with cloud test doubles. Live cloud/browser verification is separate; see [verification scope (中文)](PROJECT.md#v03-当前实现).
+测试默认离线，包含真实 STDIO 子进程及本地安装包测试，云端使用替身。macOS/Windows、Node 22/24 的 CI 矩阵与桌面客户端、真实云端验收分开记录。
 
-## License
+## 许可证
 
-[MIT](LICENSE). Third-party dependencies retain their own licenses. This is an independent project, not an official Tencent Cloud product.
+[MIT](LICENSE)。依赖遵循各自许可证。本项目为独立工具，不是腾讯云官方产品。

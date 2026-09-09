@@ -1,9 +1,13 @@
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { VERSION } from './version.mjs';
 const query = (siteId) => ({ tool: 'get_html', action: 'verify_current', required_params: ['siteId'], suggested_args: { siteId } });
-const setupGuide = () => ({
+const setupGuide = (configuration) => ({
+  configuration: configuration ?? { source: 'default_file', path: join(homedir(), '.config', 'cloudbase-html-mcp', 'credentials.env') },
   local_path: 'docs/getting-started.md',
-  url: 'https://github.com/zyfasos/cloudbase-html-mcp/blob/main/docs/getting-started.md',
+  url: `https://cdn.jsdelivr.net/npm/cloudbase-html-mcp@${VERSION}/docs/getting-started.md`,
   console_url: 'https://tcb.cloud.tencent.com/dev',
-  local_setup: { command: 'npm run setup', cwd: 'repository root', interactive: true, secret_input: 'terminal_only' },
+  local_setup: { command: `npx -y cloudbase-html-mcp@${VERSION} setup`, cwd: 'any directory', interactive: true, secret_input: 'terminal_only' },
 });
 
 export function recoveryFor(error, args = {}, tool) {
@@ -33,13 +37,13 @@ export function recoveryFor(error, args = {}, tool) {
     return result('inspect_before_update', '先读取当前页面并核对更新目标；使用查询返回的哈希更新，不要直接覆盖冲突。', { ...query(siteId), action: 'inspect_before_update' });
   }
   if (code === 'CONFIG_REQUIRED' || stage === 'CONFIG') {
-    return result('configure_environment', '请用户在本机终端、仓库根目录运行 npm run setup，隐藏输入服务端 API Key（api_key）；已有文件可用 --config 指定。管理员发放 Key 的接入者无需账号登录，环境/地域可预填。按指南生成并合并客户端配置，重载后调用 hosting_status；不要把 Key 放进工具参数。', { required_config: details.missing ?? [], setup_guide: setupGuide(), tool: 'hosting_status', suggested_args: {} });
+    return result('configure_environment', '将管理员填好的 credentials.env 放到 configuration.path 指定位置，或修正该文件中缺失/无效的字段，重载 MCP 后调用 hosting_status。environment 来源请修正客户端环境变量；不自动切换来源。自行配置时可使用可选 setup 向导，无需 CloudBase 账号登录；不要把 Key 放进工具参数。', { required_config: details.missing ?? [], setup_guide: setupGuide(details.configuration), tool: 'hosting_status', suggested_args: {} });
   }
   if (stage === 'CREDENTIAL_EXCHANGE') {
-    return result('check_credentials', '核对环境、地域、服务端 API Key（api_key）的完整值与有效期；不能用 Publishable Key 或 CAM SecretId/SecretKey 替代。修正私人配置后重启 MCP，再用 hosting_status 验证；不自动切换环境。', { setup_guide: setupGuide(), tool: 'hosting_status', suggested_args: {} });
+    return result('check_credentials', '核对环境、地域、服务端 API Key（api_key）的完整值与有效期；不能用 Publishable Key 或 CAM SecretId/SecretKey 替代。修正私人配置后重启 MCP，再用 hosting_status 验证；不自动切换环境。', { setup_guide: setupGuide(details.configuration), tool: 'hosting_status', suggested_args: {} });
   }
   if (stage === 'STATIC_STORE' && ['INVALID_RESOURCE', 'NOT_ONLINE'].includes(code)) {
-    return result('check_static_hosting', '检查当前环境的静态网站托管资源和在线状态；响应不完整或尚未就绪不等于必须新建。若控制台确实要求开通，由用户确认资源与费用后操作，再调用 hosting_status；不自动创建资源或切换环境。', { setup_guide: setupGuide(), tool: 'hosting_status', suggested_args: {} });
+    return result('check_static_hosting', '检查当前环境的静态网站托管资源和在线状态；响应不完整或尚未就绪不等于必须新建。若控制台确实要求开通，由用户确认资源与费用后操作，再调用 hosting_status；不自动创建资源或切换环境。', { setup_guide: setupGuide(details.configuration), tool: 'hosting_status', suggested_args: {} });
   }
   if (code === 'LOCAL_PAGE_NOT_FOUND') {
     return result('locate_page', '当前环境没有此路径的登记。已有页面请提供 siteId；确需新页面时再使用 publish_html。');

@@ -12,7 +12,8 @@ test('cold-start guidance supplies local and remote setup entries without passin
   ]) {
     const recovery = recoveryFor(error);
     assert.equal(recovery.next_step.setup_guide.local_path, 'docs/getting-started.md');
-    assert.equal(new URL(recovery.next_step.setup_guide.url).hostname, 'github.com');
+    assert.equal(new URL(recovery.next_step.setup_guide.url).hostname, 'cdn.jsdelivr.net');
+    assert.match(new URL(recovery.next_step.setup_guide.url).pathname, /^\/npm\/cloudbase-html-mcp@[^/]+\/docs\/getting-started\.md$/);
     assert.equal(new URL(recovery.next_step.setup_guide.console_url).hostname, 'tcb.cloud.tencent.com');
     assert.equal(recovery.next_step.tool, 'hosting_status');
     assert.deepEqual(recovery.next_step.suggested_args, {});

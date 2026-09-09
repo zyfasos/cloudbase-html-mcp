@@ -1,16 +1,17 @@
+import { VERSION } from './version.mjs';
 import { open } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { emitKeypressEvents } from 'node:readline';
 import { CloudBase, readConfig, PublishError } from './cloudbase.mjs';
 import { configLocation, readConfigFile, saveConfigFile, serializeConfig, setupError } from './config-file.mjs';
 
 export const setupHelp = `CloudBase HTML MCP 本地接入 / Local setup
-用法: npm run setup -- [--env-id ID --region REGION] [--connection /absolute/connection.json]
+用法: cloudbase-html-mcp setup [--env-id ID --region REGION] [--connection /absolute/connection.json]
                        [--config /absolute/credentials.env]
 连接 JSON 只允许 envId、region；禁止放入 API Key。
 Key 仅在真实终端隐藏输入，不接受命令参数或管道；无需 CloudBase 账号登录。
+源码检出也可 npm run setup -- [选项]。
 默认文件: ~/.config/cloudbase-html-mcp/credentials.env
 已有配置默认复用，也可确认修改。只读检查通过后保存并输出 JSON/TOML 接入片段。
 不自动修改客户端配置、不发布 HTML。使用 --help 查看本说明。`;
@@ -97,19 +98,25 @@ export async function verifyConnection(config) {
     uploadPermission: 'NOT_TESTED', publicVerification: 'NOT_TESTED' };
 }
 
-export function clientConfiguration(envFile) {
-  const command = process.execPath;
-  const args = [fileURLToPath(new URL('../scripts/start.mjs', import.meta.url)), envFile];
+export function clientConfiguration(envFile, platform = process.platform) {
+  const command = platform === 'win32' ? 'cmd.exe' : 'npx';
+  const defaultFile = join(homedir(), '.config', 'cloudbase-html-mcp', 'credentials.env');
+  const useDefault = platform === 'win32' && envFile.toLowerCase() === defaultFile.toLowerCase();
+  // cmd.exe expands metacharacters even in some quoted arguments. Default mode needs no path argument.
+  if (platform === 'win32' && !useDefault && /[&|<>^%!"()\r\n]/.test(envFile)) throw setupError('UNSAFE_WINDOWS_CONFIG_PATH');
+  const args = [...(platform === 'win32' ? ['/d', '/c', 'npx'] : []), '-y', `cloudbase-html-mcp@${VERSION}`, 'serve',
+    ...(useDefault ? [] : ['--config', envFile])];
   return {
     json: { mcpServers: { cloudbase_html: { command, args } } },
-    toml: `[mcp_servers.cloudbase_html]\ncommand = ${JSON.stringify(command)}\nargs = ${JSON.stringify(args)}\nstartup_timeout_sec = 15\ntool_timeout_sec = 180\nenabled_tools = ["hosting_status", "publish_html", "get_html", "list_html", "offline_html", "online_html"]\n`,
+    toml: `[mcp_servers.cloudbase_html]\ncommand = ${JSON.stringify(command)}\nargs = ${JSON.stringify(args)}\nstartup_timeout_sec = 180\ntool_timeout_sec = 180\nenabled_tools = ["hosting_status", "publish_html", "get_html", "list_html", "offline_html", "online_html"]\n`,
   };
 }
 
 export async function runSetup(options, { ask, report = () => {}, verify = verifyConnection } = {}) {
   const preset = await connectionOptions(options);
   const envFile = await configLocation(options.envFile ?? join(homedir(), '.config', 'cloudbase-html-mcp', 'credentials.env'));
-  const previous = await readConfigFile(envFile);
+  clientConfiguration(envFile); // Validate representability before prompting, checking cloud access or saving.
+  const previous = await readConfigFile(envFile, { strict: true });
   const values = { ...previous?.values };
   let edit = !previous;
   if (previous) {
@@ -142,8 +149,9 @@ export async function runSetup(options, { ask, report = () => {}, verify = verif
 
 export function setupFailure(error) {
   const tips = {
-    INTERACTIVE_TERMINAL_REQUIRED: '请用户在本机真实终端运行 npm run setup；不要通过聊天、管道或命令参数传入 Key。',
+    INTERACTIVE_TERMINAL_REQUIRED: `请在本机真实终端运行 npx -y cloudbase-html-mcp@${VERSION} setup；源码检出可用 npm run setup。不要通过聊天、管道或命令参数传入 Key。`,
     PRIVATE_DIRECTORY_REQUIRED: '请使用你拥有的专用目录，并在 macOS/Linux 将该目录权限设为 0700。',
+    UNSAFE_WINDOWS_CONFIG_PATH: 'Windows 自定义配置路径包含命令解释字符；请使用默认用户目录，或无这些字符的专用绝对路径。',
     PRIVATE_FILE_REQUIRED: '请在 macOS/Linux 将指定配置文件权限设为 0600，且确保归当前用户所有。',
     CONFIG_INSIDE_REPOSITORY: '请用 --config 指定 Git 仓库外的私密文件。',
     INVALID_CONFIG_PATH: '请指定可明确解析的文件绝对路径；不要以斜线、. 或 .. 结尾，也不要在不存在的目录后使用 ..。',
@@ -157,7 +165,7 @@ export function setupFailure(error) {
   const localCodes = new Set([...Object.keys(tips), 'INVALID_SETUP_ARGUMENTS', 'INVALID_SETUP_CHOICE',
     'ABSOLUTE_CONNECTION_PATH_REQUIRED', 'INVALID_CONNECTION_FILE', 'CONFLICTING_CONNECTION_OPTIONS',
     'INVALID_ENV_OR_REGION', 'ABSOLUTE_CONFIG_PATH_REQUIRED', 'REGULAR_CONFIG_FILE_REQUIRED',
-    'CONFIG_TOO_LARGE', 'UNSUPPORTED_CONFIG_FIELDS', 'INVALID_CONFIG_VALUE', 'INVALID_API_KEY_FORMAT',
+    'CONFIG_TOO_LARGE', 'INVALID_CONFIG_FILE', 'UNSUPPORTED_CONFIG_FIELDS', 'INVALID_CONFIG_VALUE', 'INVALID_API_KEY_FORMAT',
     'ABSOLUTE_REGISTRY_PATH_REQUIRED', 'TERMINAL_READ_FAILED', 'INPUT_TOO_LONG']);
   let code = 'SETUP_FAILED';
   if (error instanceof PublishError) {

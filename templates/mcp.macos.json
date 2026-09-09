@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cloudbase_html": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "cloudbase-html-mcp@0.4.0-beta.1",
+        "serve"
+      ]
+    }
+  }
+}

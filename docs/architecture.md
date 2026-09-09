@@ -1,6 +1,6 @@
 # 架构说明与关键时序
 
-本文描述 v0.3 已实现的结构。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，完整对外说明见 [README](../README.md) 与 [中文 README](../README.zh-CN.md)。
+本文描述 v0.4 beta 的结构；发布和桌面实测状态见 PROJECT。人可从图理解流程，Agent 可从职责和契约定位源码。接入见 [快速开始](getting-started.md)，中文首页见 [README](../README.md)，另有 [英文简要介绍](../README.en.md)。
 
 ## 1. 总览
 
@@ -26,9 +26,10 @@ flowchart LR
 
 | 模块 | 职责 |
 | --- | --- |
+| [CLI](../bin/cli.mjs) / [launch.mjs](../src/launch.mjs) | Node 版本检查、serve/setup 分流；读取一次配置，默认文件/显式文件/env 互斥；错误仍可发现工具。 |
 | [server.mjs](../src/server.mjs) | 六工具 schema、逐参数说明、协议返回和错误恢复；真实路径入口判断支持符号链接。 |
 | [setup.mjs](../scripts/setup.mjs) / [向导逻辑](../src/setup.mjs) | 独立交互式 CLI，环境/地域预填、隐藏输入 API Key、只读检查、生成客户端配置；不占用 MCP STDIO，不自动修改客户端。 |
-| [config-file.mjs](../src/config-file.mjs) / [start.mjs](../scripts/start.mjs) | 仓库外私密文件读取与原子保存；生成的启动入口显式加载指定文件，替换继承的 CloudBase 配置。 |
+| [config-file.mjs](../src/config-file.mjs) / [start.mjs](../scripts/start.mjs) | 仓库外私密文件读取与原子保存；新默认入口可受控收紧权限，旧 start 显式文件入口继续严格失败退出。 |
 | [publisher.mjs](../src/publisher.mjs) | 文件验证、目标解析协调、当前对象发布、下线、恢复、列表与公网验证。 |
 | [registry.mjs](../src/registry.mjs) | v2 站点目录、v1 兼容迁移、环境级锁、路径绑定和未完成操作。 |
 | [domains.mjs](../src/domains.mjs) | 网关发现、候选筛选、规范 URL 解析与当前环境归属校验。 |
@@ -37,9 +38,37 @@ flowchart LR
 | [recovery.mjs](../src/recovery.mjs) / [errors.mjs](../src/errors.mjs) | 结构化错误与下一步建议；建议不等于自动重试引擎。 |
 | [call.mjs](../scripts/call.mjs) / [cleanup-snapshots.mjs](../scripts/cleanup-snapshots.mjs) | 一次性协议客户端、默认只读的旧快照清理 CLI。 |
 
-服务按首次需要配置的调用创建 Publisher。缺失凭据时可以列举工具，调用返回 CONFIG_REQUIRED 及 setup_guide，其中 local_setup 引导用户在真实终端运行向导。生成的 start.mjs 入口在文件不存在或私密保护检查失败时先退出，仅写 stderr。原 src/server.mjs 环境变量入口仍兼容，原生 --env-file 不存在时由 Node 先退出。list_html 不调用云端，但仍使用当前配置环境。
+新 CLI 在启动时读取配置快照，Publisher 按首次工具调用创建。默认读取用户主目录 `.config/cloudbase-html-mcp/credentials.env`；--config 指定文件，--env 明确环境变量，三路不合并、不回退。文件错误被保留为 CONFIG 诊断，仍可初始化及列举六工具，调用返回实际来源、路径及文件放置/修复建议；不访问云端。修改文件后需要重载。hosting_status 成功时补充 configuration.source/path，不返回凭据，也不替代 list_html 对目录的实际读取检查。
 
-### 本地接入设置时序
+macOS/Linux 只有标准默认路径、当前用户拥有的无重定向专用目录及普通单链接文件可自动收紧权限；Git 检查先于 chmod。通过已打开句柄修改权限，并核对文件身份；不重写内容。显式路径保持严格检查。Windows 沿用账户 ACL，不提权或重写 ACL。
+
+旧 src/server.mjs 环境变量入口、start.mjs 显式文件入口和 Node 原生 --env-file 均保留原行为；后两种文件缺失可在协议启动前退出。新 CLI 文件配置不修改进程环境，而是向业务实例传递隔离的配置对象，避免环境污染。
+
+```mermaid
+sequenceDiagram
+  actor U as 接入者
+  participant F as 用户目录配置文件
+  participant M as 桌面 MCP 客户端
+  participant L as 固定版本 CLI
+  participant C as CloudBase
+  U->>F: 放置管理员填好的完整文件
+  U->>M: 粘贴无凭据的 STDIO 配置
+  M->>L: 启动 serve
+  L->>F: 定位、必要权限收紧、读取一次
+  M->>L: initialize 与 tools/list
+  L-->>M: 六工具
+  M->>L: hosting_status
+  alt 配置可用
+    L->>C: 凭据与托管只读检查
+    L-->>M: 目标环境与配置来源
+  else 配置不可用
+    L-->>M: 路径与修复指引，不访问云端
+  end
+```
+
+### 可选向导时序
+
+下图展示显式路径启动；Windows 标准位置可使用无路径参数的 serve。
 
 管理员提供环境 ID、地域及 API Key，接收者无需 CloudBase 账号登录。向导不使用继承的 CloudBase 环境变量作为隐式输入；连接 JSON 仅允许 envId、region。已有文件默认复用，edit 才修改，旧 Key 和可选配置可保留。确认目标后，只读检查成功才保存；失败/取消保留原文件。原子替换前使用排他文件锁并比较原内容，避免多个向导互相覆盖；崩溃遗留锁需人工核对后清理。配置路径先按文件系统解析目录符号链接，再处理父目录语义，检查与读写统一使用物理目标；缺失目录后的 .. 无法明确定位时拒绝，不静默改指相邻文件。文件不进入 Git，POSIX 私密目录 0700、文件 0600；Windows ACL 由用户管理。
 
@@ -60,14 +89,14 @@ sequenceDiagram
     W->>F: 新建或明确修改时原子保存
     W-->>U: 不含 Key 的 JSON/TOML 配置
     U->>M: 合并配置并重载
-    M->>S: 启动 start 入口
+    M->>S: 固定版本 serve --config
     S->>F: 读取指定配置
     M->>S: 调用 hosting_status
     S->>C: 只读检查实际客户端连接
   end
 ```
 
-向导的连接检查与 hosting_status 复用 CloudBase.connect；只证明凭据和托管在线，域名发现状态另报，上传/删除和公网 HTML 均未测试。JSON/TOML 只包含本地路径；不写 API Key 到参数、协议结果或配置片段。配置文件读取会清除继承的同名及缺失可选 CloudBase 变量；旧的 Node 原生 --env-file 模式仍遵循环境变量优先语义。
+向导的连接检查与 hosting_status 复用 CloudBase.connect；只证明凭据和托管在线，域名发现状态另报，上传/删除和公网 HTML 均未测试。JSON/TOML 包含固定包版本和必要的私密文件路径（Windows 默认位置省略路径），不引用 npx 缓存；不写 API Key 到参数、协议结果或配置片段。新入口直接使用隔离配置，旧 start 入口会清除继承的同名及缺失可选 CloudBase 变量；旧的 Node 原生 --env-file 模式仍遵循环境变量优先语义。
 
 ## 3. 工具契约
 
@@ -217,16 +246,21 @@ sequenceDiagram
 
 | 测试入口 | 覆盖重点 |
 | --- | --- |
-| [config-paths.test.mjs](../test/config-paths.test.mjs) | 符号链接与父目录语义、真实目标 Git/目录权限检查、读写一致性及生产启动入口拒绝 |
-| [setup.test.mjs](../test/setup.test.mjs) | 隐藏输入、连接预填、配置复用/修改/失败保护、文件权限和竞争、生成配置实际 STDIO 接入（云端替身） |
-| [publisher.test.mjs](../test/publisher.test.mjs) | 文件、凭据、单份写入、固定 URL、冲突和真实冷启动 schema |
-| [domains.test.mjs](../test/domains.test.mjs) | 域名优先级、路由、分页与拒绝条件 |
-| [registry.test.mjs](../test/registry.test.mjs) | 登记、路径绑定、环境锁、失败保留 pending 和目录保护 |
-| [lifecycle.test.mjs](../test/lifecycle.test.mjs) | v1 迁移、URL 归属、下线/恢复、分页清理、清单与 SDK 适配 |
-| [review-fixes.test.mjs](../test/review-fixes.test.mjs) | 路径重绑及旧 v2 兼容、输入/规范路径分别核验、元数据读取降级和写入阻断 |
-| [recovery.test.mjs](../test/recovery.test.mjs) | 配置引导及恢复建议 |
-| [stdio.test.mjs](../test/stdio.test.mjs) | 六工具完整流程、重启/退出恢复、符号链接入口 |
+| `launch.test.mjs` / `package.test.mjs` | 三路配置、默认权限、无配置发现、实际 tarball 仓库外安装、重装及完整六工具流程（云端替身） |
+| `config-paths.test.mjs` | 符号链接与父目录语义、真实目标 Git/目录权限检查、读写一致性及生产启动入口拒绝 |
+| `setup.test.mjs` | 隐藏输入、连接预填、配置复用/修改/失败保护、文件权限和竞争、生成配置实际 STDIO 接入（云端替身） |
+| `publisher.test.mjs` | 文件、凭据、单份写入、固定 URL、冲突和真实冷启动 schema |
+| `domains.test.mjs` | 域名优先级、路由、分页与拒绝条件 |
+| `registry.test.mjs` | 登记、路径绑定、环境锁、失败保留 pending 和目录保护 |
+| `lifecycle.test.mjs` | v1 迁移、URL 归属、下线/恢复、分页清理、清单与 SDK 适配 |
+| `review-fixes.test.mjs` | 路径重绑及旧 v2 兼容、输入/规范路径分别核验、元数据读取降级和写入阻断 |
+| `recovery.test.mjs` | 配置引导及恢复建议 |
+| `stdio.test.mjs` | 六工具完整流程、重启/退出恢复、符号链接入口 |
 
 自动化测试默认离线：STDIO 使用真实子进程和官方 SDK，云端是替身，文件系统使用真实临时文件。2026-09-09 另经用户授权，以合成页面完成真实连接、ID/路径/URL 查询、固定 URL 更新、冲突保护、下线删除、公网 404、重启目录读取和恢复；站点最终仅有当前 HTML，没有项目快照。程序请求观察到 attachment，浏览器自动化未完成导航；用户随后提供的 Chrome 截图确认原 URL 正常渲染恢复后的 v2。保留两类证据，不将自动化失败或下载头推断成所有浏览器无法展示；已有快照删除及故障恢复等仍只有离线证据，不能将本轮正常流程实测泛化到全部边界。
 
-修改行为需补回归并运行 npm run check 与 npm test；同步双语 README、快速开始及本文。规划放在 [PROJECT.md](../PROJECT.md)，不能画成已实现组件。
+修改行为需补回归并运行 npm run check 与 npm test；同步中文 README、快速开始及本文；英文概览仅维护必要事实和入口，不作全文对译。规划放在 [PROJECT.md](../PROJECT.md)，不能画成已实现组件。
+
+## 9. 分发边界
+
+包元数据为版本唯一来源；bin 提供稳定入口，白名单限制发布内容，npm-shrinkwrap.json 锁定传递依赖。凭据与目录在用户主目录，不随安装位置移动。测试版本为 0.4.0-beta.1，按 beta 标签分发；客户端模板固定该版本。macOS/Windows Node 22/24 工作流只执行离线检查，不含发布或云端凭据。现有 v0.3 实测不替代 v0.4 客户端与 Windows 验收。

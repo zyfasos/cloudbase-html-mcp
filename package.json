@@ -1,16 +1,51 @@
 {
   "name": "cloudbase-html-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0-beta.1",
   "license": "MIT",
-  "private": true,
   "type": "module",
   "description": "Local STDIO MCP for publishing a single HTML file to CloudBase",
-  "engines": { "node": ">=22" },
-  "scripts": { "start": "node src/server.mjs", "setup": "node scripts/setup.mjs", "test": "node --test test/*.test.mjs", "check": "node --check src/config-file.mjs && node --check src/setup.mjs && node --check scripts/setup.mjs && node --check scripts/start.mjs && node --check scripts/call.mjs && node --check src/errors.mjs && node --check src/cleanup.mjs && node --check scripts/cleanup-snapshots.mjs && node --check src/server.mjs && node --check src/publisher.mjs && node --check src/cloudbase.mjs && node --check src/domains.mjs && node --check src/recovery.mjs && node --check src/registry.mjs" },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "setup": "node scripts/setup.mjs",
+    "test": "node --test test/config-paths.test.mjs test/domains.test.mjs test/lifecycle.test.mjs test/publisher.test.mjs test/recovery.test.mjs test/registry.test.mjs test/review-fixes.test.mjs test/setup.test.mjs test/stdio.test.mjs test/launch.test.mjs test/package.test.mjs",
+    "check": "node --check bin/cli.mjs && node --check src/launch.mjs && node --check src/version.mjs && node --check src/config-file.mjs && node --check src/setup.mjs && node --check scripts/setup.mjs && node --check scripts/start.mjs && node --check scripts/call.mjs && node --check src/errors.mjs && node --check src/cleanup.mjs && node --check scripts/cleanup-snapshots.mjs && node --check src/server.mjs && node --check src/publisher.mjs && node --check src/cloudbase.mjs && node --check src/domains.mjs && node --check src/recovery.mjs && node --check src/registry.mjs"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "cos-nodejs-sdk-v5": "3.0.0",
     "tencentcloud-sdk-nodejs-tcb": "4.1.307",
     "zod": "4.5.4"
+  },
+  "bin": {
+    "cloudbase-html-mcp": "bin/cli.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "scripts/setup.mjs",
+    "scripts/start.mjs",
+    "scripts/call.mjs",
+    "scripts/cleanup-snapshots.mjs",
+    "docs/getting-started.md",
+    "docs/clients.md",
+    "docs/architecture.md",
+    "templates/",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "PROJECT.md",
+    "npm-shrinkwrap.json",
+    ".env.example",
+    "README.en.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zyfasos/cloudbase-html-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zyfasos/cloudbase-html-mcp/issues"
   }
 }

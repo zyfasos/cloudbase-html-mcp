@@ -9,16 +9,19 @@
 
 项目起点是一个具体的交付场景：Agent 生成报告、演示或轻量交互页面后，使用者希望直接分享链接，修改后继续迭代同一地址。HTML 在这里承载版式、图表与交互，也保留可继续修改的源码；这是一项产品取舍，不把“HTML 已取代 Markdown”或“分享已成为所有人的刚需”当作未经验证的事实。
 
-2026-09-09 核对公开项目说明后，已经存在相近方案，不能声称 GitHub 上没有单 HTML 发布工具。下表只对照公开文档中的能力，未进行这些项目的安装、性能或服务质量评测。
+2026-09-10 再次核对公开项目说明：已经存在相近方案，不能声称 GitHub 上没有单 HTML 发布工具，也不能将它们统一描述为依赖 Cloudflare。下表只对照公开文档中的能力，未进行这些项目的安装、性能或服务质量评测。
 
 | 项目 | 公开说明中的能力与交付形态 |
 | --- | --- |
-| [htmldrop](https://github.com/vin-spiegel/htmldrop) | 提供发布 API 和 MCP，可把 HTML 等产物转换为分享链接，并提供自托管说明。 |
+| [htmldrop](https://github.com/vin-spiegel/htmldrop) | 提供发布 API、远程 MCP 及自托管接入；支持 Cloudflare R2、AWS S3、MinIO 等 S3 兼容存储，也可使用本地文件系统。 |
 | [agent2web](https://github.com/raveli/agent2web) | 通过远程 MCP 发布单页 HTML 或多文件站点，运行于 Cloudflare Workers、D1、R2，并提供版本及管理界面。 |
-| [tinyhost](https://github.com/allenai/tinyhost) | 以命令行将单页放到 S3 并提供限时链接；项目动机明确包括分享由 AI 生成的小页面。 |
+| [tinyhost](https://github.com/allenai/tinyhost) | 以命令行将单页放到 AWS S3 并提供限时链接；项目动机明确包括分享由 AI 生成的小页面。 |
+| [CloudBase 官方 CLI](https://docs.cloudbase.net/cli-v1/hosting) | 面向云开发和资源管理；静态托管命令本身支持指定单文件或目录上传。 |
 | [CloudBase 官方 MCP](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) | 覆盖静态托管、存储、数据库、云函数等更广的云开发能力。 |
 
 本项目聚焦中文使用说明、国内桌面 Agent 手工接入、管理员整份交付配置，以及用户自己的 CloudBase 环境。它将“指定本地单 HTML → 发布 → 同链接更新 → 下线/恢复”收敛为六工具，不需要部署额外的远程服务或业务数据库。这里的轻量指职责和接入范围集中，不是对安装体积、性能或所有场景易用性的比较结论。
+
+官方 CLI 可以完成底层文件操作。本项目在这一具体场景中提供面向 Agent 的站点操作契约：通过本地登记保持文件与站点关联、检查旧哈希避免误覆盖，并协调发布、查询、下线与恢复。差异在于为单 HTML 分享组织好的使用流程；不宣称官方 CLI 无法上传单文件，也不将“重”泛化为性能或质量问题。
 
 ## v0.4 beta
 

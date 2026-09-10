@@ -4,7 +4,7 @@
 
 A local STDIO MCP server that lets your desktop AI agent publish a designated HTML file to your CloudBase environment, update the same URL, take a site offline and restore it from a local file.
 
-The motivation is simple: an agent-generated report, demo or interactive page should be easy to share and keep updating through one link. HTML preserves editable source for the agent and a browser view for the reader.
+The motivation is simple: share an agent-generated report, demo or interactive page, keep updating the same link, and take it offline or restore it when needed. The workflow focuses on single HTML files, desktop MCP clients and an administrator-provided configuration file; it needs no separate remote MCP service. See the [scenarios and lifecycle diagram](README.md#典型场景) in the Chinese README.
 
 [CloudBase](https://cloudbase.net/) is Tencent Cloud's application development platform. This tool uses its static hosting and environment authentication for one focused workflow: publishing a single local HTML file to your own environment. Cloud service charges are separate from the MIT-licensed tool. See the [Chinese positioning notes](PROJECT.md#positioning-and-related-tools) for related projects and scope.
 

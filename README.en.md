@@ -10,6 +10,12 @@ The motivation is simple: share an agent-generated report, demo or interactive p
 
 **0.4.0-beta.4 is a testing release.** It fixes UTF-8 BOM configuration loading and CLI argument diagnostics, and retains shared-file site management and directory share URLs. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.4 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
+## Workflow
+
+![HTML publishing lifecycle: publish or update a local HTML file to an online page; taking it offline deletes cloud content but keeps the local registration; restoring it requires a specified local file.](docs/images/html-lifecycle.en.png)
+
+`publish_html` publishes or updates an online page; `offline_html` deletes cloud content while keeping its registration; `online_html` restores the site from the file you specify. Updates and restoration keep the original URL when the domain mapping is unchanged. Editing the local file alone does not update the online page.
+
 ## Setup
 
 Receive a completed `credentials.env` from your administrator and place it at `.config/cloudbase-html-mcp/credentials.env` under your home directory. Then add the MCP using the appropriate client configuration, reload it, and run `hosting_status` and `list_html`. Administrator-issued Keys require no CloudBase login.

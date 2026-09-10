@@ -16,7 +16,7 @@
 已有可用的 Node.js 22+ 和 npm/npx 时直接复用，无需重装。还没有安装时：
 
 1. 打开 [Node.js 官方中文下载页](https://nodejs.org/zh-cn/download)，新安装可选择 **Node.js 24 LTS**。选择自己的操作系统及对应架构，下载安装程序；不需要 Docker 或源码包。
-2. **macOS：**在“关于本机”查看芯片类型（Apple 芯片或 Intel），选择对应选项，下载并双击 `.pkg` 安装程序。**Windows：**在“设置→系统→关于→系统类型”查看 x64 或 ARM64，下载对应的 `.msi` 安装程序。按默认选项完成安装；如果提供 npm、加入 PATH 等选项，请保持启用，以便后续使用 npm/npx 命令。参见 [npm 安装说明](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/)。
+2. **macOS：** 在“关于本机”查看芯片类型（Apple 芯片或 Intel），选择对应选项，下载并双击 `.pkg` 安装程序。 **Windows：** 在“设置→系统→关于→系统类型”查看 x64 或 ARM64，下载对应的 `.msi` 安装程序。按默认选项完成安装；如果提供 npm、加入 PATH 等选项，请保持启用，以便后续使用 npm/npx 命令。参见 [npm 安装说明](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/)。
 3. 安装后重新打开终端：macOS 使用“终端”；Windows 可按 `Win+R` 输入 `cmd` 打开命令提示符。也可以让已有终端执行能力的 Agent 帮你检查：
 
 ```sh
@@ -67,10 +67,10 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 .config/cloudbase-html-mcp/credentials.env
 ```
 
-- **macOS：**访达 → 前往 → 前往文件夹（`⌘⇧G`），输入 `~/.config/cloudbase-html-mcp`。目录已存在时，直接放入文件；目录不存在时，使用下面的“创建并打开目录”步骤，不要求在访达手动新建点开头的目录。按 `⌘⇧.` 可显示隐藏文件。
-- **Windows：**在资源管理器地址栏粘贴 `%USERPROFILE%`，依次创建 `.config` 和 `cloudbase-html-mcp` 文件夹，再放入文件。开启“文件扩展名”显示，确认没有变成 `credentials.env.txt`。
+- **macOS：** 访达 → 前往 → 前往文件夹（`⌘⇧G`），输入 `~/.config/cloudbase-html-mcp`。目录已存在时，直接放入文件；目录不存在时，使用下面的“创建并打开目录”步骤，不要求在访达手动新建点开头的目录。按 `⌘⇧.` 可显示隐藏文件。
+- **Windows：** 在资源管理器地址栏粘贴 `%USERPROFILE%`，依次创建 `.config` 和 `cloudbase-html-mcp` 文件夹，再放入文件。开启“文件扩展名”显示，确认没有变成 `credentials.env.txt`。
 
-**Mac 目录尚不存在时：**可直接对已有终端能力的 Agent 说：
+**Mac 目录尚不存在时：** 可直接对已有终端能力的 Agent 说：
 
 > 请帮我创建并在访达打开当前用户的 ~/.config/cloudbase-html-mcp 目录。我会放入管理员给的 credentials.env。保留已有目录和文件，不读取或覆盖凭据，不发布页面。
 
@@ -93,7 +93,7 @@ Agent 或用户可在 macOS 终端执行下列一次性命令；它只创建缺�
 <a id="new-to-cloudbase"></a>
 ### 从零准备 CloudBase
 
-**已收到完整配置文件？**直接按上节放置并继续添加 MCP。**只收到 Key？**向管理员取得对应环境 ID 和地域后填写模板，也可以使用 [可选向导](#optional-setup-wizard)，无需控制台登录。
+**已收到完整配置文件？** 直接按上节放置并继续添加 MCP。 **只收到 Key？** 向管理员取得对应环境 ID 和地域后填写模板，也可以使用 [可选向导](#optional-setup-wizard)，无需控制台登录。
 
 已有环境和私密配置时直接复用。需要从零准备的环境所有者按下表操作；控制台名称可能调整，以官方指南为准。
 
@@ -119,6 +119,10 @@ Agent 或用户可在 macOS 终端执行下列一次性命令；它只创建缺�
 5. 在创建结果中复制**完整 Key 值**，立即保存到 `credentials.env` 的 `CLOUDBASE_API_KEY=` 后面。保留整段字符串，不加 `Bearer `，不填 Key ID、名称或列表里的脱敏值。完整 Key 仅在创建时返回，参见 [官方 API Key 说明](https://docs.cloudbase.net/api-reference/manager/node/login-config#createapikey)。
 6. 核对三个值属于同一环境，保存为 UTF-8 纯文本的 `credentials.env`。管理员可整份私下交付；收件人按 [固定位置](#for-the-recipient) 放好，再添加 MCP。
 
+![CloudBase 控制台：环境管理中的 API Key 配置页，下方服务端 API Key 区域及创建弹窗](images/cloudbase-api-key-console.png)
+
+图：2026-09-09 的控制台界面，展示“环境管理 → API Key 配置 → 服务端 API Key → 创建 API Key”。弹窗中的 `test-key` 是名称，不是 Key 值；过期时间按实际需要选择。[查看原图](images/cloudbase-api-key-console.png)。
+
 ```dotenv
 CLOUDBASE_ENV_ID=your-env-id
 CLOUDBASE_REGION=your-region
@@ -129,7 +133,7 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 
 此 Key 是管理端环境凭据，权限范围大于本工具的六项能力；保持在私密配置文件中，不放入发布的 HTML、公开 MCP JSON 或 Git 仓库。它与 Publishable Key、CAM SecretId/SecretKey、CloudBase CLI 登录态不同。[官方 MCP 认证说明](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) 介绍了环境 Key 换取临时凭据的机制；本项目使用上面的 `credentials.env` 格式，不照搬官方 MCP 的启动配置。
 
-**连通检查不要求自定义域名。**初次接入可不设置 `CLOUDBASE_PUBLIC_BASE_URL`。默认域名限制见 [首次使用](#6-first-use)，绑定自定义域名是单独的配置决定，不需要为了完成接入上传控制台样例。
+**连通检查不要求自定义域名。** 初次接入可不设置 `CLOUDBASE_PUBLIC_BASE_URL`。默认域名限制见 [首次使用](#6-first-use)，绑定自定义域名是单独的配置决定，不需要为了完成接入上传控制台样例。
 
 <a id="3-let-your-agent-set-it-up"></a>
 <a id="44-register-the-server-in-your-client"></a>
@@ -319,7 +323,7 @@ Agent 的顺序为：
 
 用站点 ID 或已核验 URL，加上本次指定文件调用 `online_html`。要求有本地离线登记，文件存在且云端当前对象不存在；对象意外出现时返回冲突。先完成待处理清理；前次恢复已写入相同内容但结果不确定时，可核验完成。已在线页面按正常流程更新。
 
-**同一文件对应多个站点：**beta.3 已修复这一场景。明确提供 A 的 `siteId` 或 `siteUrl` 时，可用默认绑定到 B 的文件更新或恢复 A；B 的内容、生命周期和默认绑定均不变。之后只按文件路径查询，仍会找到 B；继续管理 A 请保留 A 的 ID/URL。返回的 `pathBinding` 说明文件的默认绑定，顶层 `siteId` 才是本次目标。只有 `newPage` 或完成对应 pending 新建才切换已有默认绑定。
+**同一文件对应多个站点：** beta.3 已修复这一场景。明确提供 A 的 `siteId` 或 `siteUrl` 时，可用默认绑定到 B 的文件更新或恢复 A；B 的内容、生命周期和默认绑定均不变。之后只按文件路径查询，仍会找到 B；继续管理 A 请保留 A 的 ID/URL。返回的 `pathBinding` 说明文件的默认绑定，顶层 `siteId` 才是本次目标。只有 `newPage` 或完成对应 pending 新建才切换已有默认绑定。
 
 如果 beta.2 报 `LOCAL_BINDING_CONFLICT`，不要下线其他站点或直接编辑 `catalog-v2.json`；下线保留路径绑定。可让用户指定一份放在未登记路径的 HTML 副本，再用原站点 ID 恢复，或升级到 beta.4 后重试原目标。
 

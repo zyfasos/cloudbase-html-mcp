@@ -6,7 +6,9 @@
 
 CloudBase HTML MCP 面向国内桌面 Agent 用户，将本地报告、演示或交互页面发布到自己的 CloudBase 环境。修改后更新原链接，需要时下线，再从指定的本地文件恢复。
 
-本地 STDIO MCP · 六工具 · MIT · 当前测试版 `0.4.0-beta.6`。[验证状态](PROJECT.md#v04-验证与发布安排)
+<!-- release:version -->
+本地 STDIO MCP · 六工具 · MIT · 当前版本 `0.4.0-beta.6`。[验证状态](PROJECT.md#v04-验证与发布安排)
+<!-- /release:version -->
 
 <a id="为什么做这个工具"></a>
 ## 为什么选择它

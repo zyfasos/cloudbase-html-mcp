@@ -26,7 +26,7 @@
 ## v0.4 beta
 
 - 固定用户目录 credentials.env 主线、serve 默认/--config/--env 三路入口；setup 为可选辅助，新入口配置错误仍可列工具。
-- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；版本 0.4.0-beta.6，按 npm beta 标签分发。
+- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；当前版本及分发状态见下方发布说明。
 - Node.js >=22、本地 STDIO MCP；六工具：hosting_status、publish_html、get_html、list_html、offline_html、online_html。
 - 环境管理端 API Key 换临时凭据；域名发现及严格 URL 归属核验。
 - 独立本地 `npm run setup` 向导：环境/地域预填或 JSON 导入、隐藏输入 Key、只读连接检查、私密配置保存与 JSON/TOML 接入片段；支持管理员发 Key 的无账号接入。生成的启动入口固定读取指定文件，现有环境变量入口保持兼容。
@@ -53,7 +53,9 @@ v0.3 历史证据：2026-09-09 已在用户授权的一个环境中，使用合�
 
 ## 开源与发布
 
-源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.6`，使用 npm 分发；`beta` 和 `latest` 为测试版入口，接入模板固定具体版本。
+<!-- release:version -->
+源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.6`，使用 npm 分发，接入模板固定具体版本；各标签指向及验收结论以下方版本记录为准。
+<!-- /release:version -->
 
 业务 HTML、私人环境信息、凭据、本地登记和 docs/implementation/ 不进入 Git（包括历史）；实施档案只在本地维护。
 

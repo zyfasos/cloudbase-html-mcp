@@ -6,7 +6,7 @@
 
 **准备 Node.js → 放好完整配置文件 → 在桌面 Agent 中添加 MCP → 验证 → 开始使用。**
 
-当前 v0.4 为 **0.4.0-beta.5 测试版**，将单 HTML 上限提高到 20 MiB，并包含此前的 BOM、CLI 提示、共享文件绑定和目录分享地址修复。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。发布与验证进度单独记录；WorkBuddy/千问办公桌面证据来自 beta.2，新版桌面复验仍待完成，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
+当前 v0.4 为 **0.4.0-beta.5 测试版**，将单 HTML 上限提高到 20 MiB，并包含此前的 BOM、CLI 提示、共享文件绑定和目录分享地址修复。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。beta.5 已发布并通过四组 CI 与公共 npm 冷启动；WorkBuddy/千问办公桌面证据来自 beta.2，新版桌面复验仍待完成，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
 
 你需要支持本地 STDIO MCP 的桌面客户端，以及已开启静态托管的 CloudBase 环境。管理员可以直接提供下述完整文件；收到文件后，无需 CloudBase 账号登录或重填三个参数。人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
 

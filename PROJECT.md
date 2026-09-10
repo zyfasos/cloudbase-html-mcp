@@ -127,7 +127,9 @@ Windows 的 4 项跳过为原有平台限定测试。CI 和公共包验证不能
 
 ## beta.5：20 MiB 单 HTML
 
-单 HTML 上限由 5 MiB 提高到 20 MiB（20,971,520 字节），本地读取、发布/恢复及公网验证共用该限制。超出上限仍在上传前拒绝。此变更纳入 `0.4.0-beta.5`，旧版 beta.4 仍为 5 MiB。Node22 本地 check 与149项离线测试通过；[功能提交0734947的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34455806494)通过。beta.5 的发布、公共npm冷启动结果待记录；20MiB真实云端及桌面验收仍待完成。
+单 HTML 上限由 5 MiB 提高到 20 MiB（20,971,520 字节），本地读取、发布/恢复及公网验证共用该限制。超出上限仍在上传前拒绝。此变更纳入 `0.4.0-beta.5`，旧版 beta.4 仍为 5 MiB。Node22 本地 check 与149项离线测试通过；[功能提交0734947的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34455806494)通过。2026-09-10，beta.5 已发布，`beta` 和 `latest` 均指向该版本。全新 npm 缓存安装通过版本查询、六工具发现、BOM 配置诊断及 20 MiB 文件读取/内容校验、多 1 字节拒绝；registry 完整性与发布包一致。内容校验使用合成响应，未访问真实 CloudBase。
+
+[发布源码857199f的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34456610781)全部通过：macOS Node22/24 各149通过，Windows Node22/24 各145通过及4项原有平台跳过，均零失败。20MiB真实云端及桌面验收仍待完成。npm 包内文档为发布快照，GitHub 文档另补发布结果。
 
 ## 文档语言
 

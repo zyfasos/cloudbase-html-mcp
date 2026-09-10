@@ -61,8 +61,10 @@ export async function readConfigFile(file, { strict = false } = {}) {
     }
     if (actual.size > 65536) throw setupError('CONFIG_TOO_LARGE');
     const text = await handle.readFile('utf8');
-    if (strict) validateConfigText(text);
-    const values = parseEnv(text);
+    // Keep raw text for concurrent-edit detection; parseEnv does not strip a leading BOM.
+    const parseText = text.replace(/^\uFEFF/, '');
+    if (strict) validateConfigText(parseText);
+    const values = parseEnv(parseText);
     if (Object.keys(values).some((key) => !configFields.includes(key))) throw setupError('UNSUPPORTED_CONFIG_FIELDS');
     return { text, values, path: target };
   } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
@@ -139,7 +141,7 @@ export async function prepareDefaultConfig(file) {
 
 function validateConfigText(text) {
   const seen = new Set();
-  for (const raw of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+  for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
     const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);

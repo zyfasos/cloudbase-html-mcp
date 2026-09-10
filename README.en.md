@@ -8,7 +8,7 @@ The motivation is simple: an agent-generated report, demo or interactive page sh
 
 [CloudBase](https://cloudbase.net/) is Tencent Cloud's application development platform. This tool uses its static hosting and environment authentication for one focused workflow: publishing a single local HTML file to your own environment. Cloud service charges are separate from the MIT-licensed tool. See the [Chinese positioning notes](PROJECT.md#positioning-and-related-tools) for related projects and scope.
 
-**0.4.0-beta.3 is a testing release.** It fixes shared-file site binding and recovery guidance, returns directory share URLs, and accepts legacy `index.html` links. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.3 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
+**0.4.0-beta.4 is a testing release.** It fixes UTF-8 BOM configuration loading and CLI argument diagnostics, and retains shared-file site management and directory share URLs. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.4 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
 ## Setup
 

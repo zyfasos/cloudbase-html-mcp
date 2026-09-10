@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { fixture } from './helpers.mjs';
 import { defaultConfigPath, loadLaunchConfig, parseServeArgs } from '../src/launch.mjs';
-import { serializeConfig } from '../src/config-file.mjs';
+import { readConfigFile, saveConfigFile, serializeConfig } from '../src/config-file.mjs';
 import { clientConfiguration } from '../src/setup.mjs';
 import { VERSION } from '../src/version.mjs';
 
@@ -186,9 +186,59 @@ test('Windows wizard rejects shell-interpreted custom paths and accepts ordinary
 
 test('UTF-8 BOM, CRLF, comments and quoted values remain usable for received files', async (t) => {
   const home = await homeFor(t);
-  await configAt(home, '\uFEFF# 管理员配置\r\n' + serializeConfig(values).replaceAll('\n', '\r\n'));
-  const result = await loadLaunchConfig({}, { home });
-  assert.equal(result.config?.apiKey, values.CLOUDBASE_API_KEY, result.error?.code);
+  for (const prefix of ['', '\uFEFF', '\uFEFF# 管理员配置\r\n']) {
+    for (const newline of ['\n', '\r\n']) {
+      const text = prefix + serializeConfig(values).replaceAll('\n', newline);
+      const file = await configAt(home, text);
+      for (const options of [{}, { configFile: file }]) {
+        const result = await loadLaunchConfig(options, { home, env: {} });
+        assert.equal(result.config?.apiKey, values.CLOUDBASE_API_KEY, result.error?.code);
+        assert.equal(result.config.envId, values.CLOUDBASE_ENV_ID);
+      }
+      const legacy = await readConfigFile(file);
+      assert.deepEqual({ ...legacy.values }, values);
+      assert.equal(legacy.text, text);
+      assert.equal(await readFile(file, 'utf8'), text);
+    }
+  }
+});
+
+test('BOM normalization preserves raw configuration change detection', async (t) => {
+  const home = await homeFor(t), text = serializeConfig(values);
+  const file = await configAt(home, '\uFEFF' + text);
+  const previous = await readConfigFile(file);
+  await writeFile(file, text);
+  await assert.rejects(saveConfigFile(file, values, previous), { code: 'CONFIG_CHANGED' });
+  assert.equal(await readFile(file, 'utf8'), text);
+});
+
+test('BOM directly before the first field works through default and explicit STDIO launchers', async (t) => {
+  const home = await homeFor(t);
+  const file = await configAt(home, '\uFEFF' + serializeConfig(values).replaceAll('\n', '\r\n'));
+  for (const args of [['serve'], ['serve', '--config', file]]) {
+    await session(t, home, args, async (client) => {
+      assert.equal((await client.listTools()).tools.length, 6);
+      const result = await client.callTool({ name: 'hosting_status', arguments: {} });
+      assert.equal(result.isError, false);
+      assert.equal(result.structuredContent.envId, values.CLOUDBASE_ENV_ID);
+      assert.ok(!JSON.stringify(result).includes(values.CLOUDBASE_API_KEY));
+    });
+  }
+});
+
+test('CLI invalid argument diagnostics describe valid usage without echoing arguments', () => {
+  for (const args of [
+    ['--config', 'relative.env'], ['--unknown-secret-value'], ['--config'], ['--env', '--config', cli],
+  ]) {
+    const result = spawnSync(process.execPath, [cli, 'serve', ...args], { encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /INVALID_LAUNCH_ARGUMENTS/);
+    assert.match(result.stderr, /--help/);
+    assert.ok(!result.stderr.includes('unknown-secret-value'));
+    assert.ok(!result.stderr.includes('relative.env'));
+    assert.ok(!result.stderr.includes(cli));
+  }
 });
 
 test('explicit directory alias reports the physical file it actually reads', { skip: process.platform === 'win32' }, async (t) => {

@@ -4,7 +4,7 @@
 
 **让 Agent 生成的 HTML，更方便地被分享、阅读和继续迭代。** 指定一个本地文件，发布到自己的 CloudBase 环境，拿到可持续更新的链接。
 
-本地 STDIO MCP · 六工具 · MIT · 当前测试版 `0.4.0-beta.3`。[验证状态](PROJECT.md#v04-验证与发布安排)
+本地 STDIO MCP · 六工具 · MIT · 当前测试版 `0.4.0-beta.4`。[验证状态](PROJECT.md#v04-验证与发布安排)
 
 ## 为什么做这个工具
 
@@ -35,7 +35,7 @@
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
     }
   }
 }
@@ -48,7 +48,7 @@
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
     }
   }
 }

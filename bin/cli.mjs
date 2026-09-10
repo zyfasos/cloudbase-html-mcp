@@ -17,8 +17,11 @@ if (Number(process.versions.node.split('.')[0]) < 22) {
     try {
       const { parseServeArgs, serve } = await import('../src/launch.mjs');
       await serve(parseServeArgs(args[0] === 'serve' ? args.slice(1) : args));
-    } catch {
-      process.stderr.write('CloudBase HTML MCP: 启动失败；使用 --help 核对命令。--config 与 --env 不能同时使用。\n');
+    } catch (error) {
+      const diagnostic = error?.code === 'INVALID_LAUNCH_ARGUMENTS'
+        ? 'INVALID_LAUNCH_ARGUMENTS：启动参数无效。用法：serve [--config <绝对路径> | --env]；使用 --help 查看帮助。'
+        : '启动失败；使用 --help 核对命令与运行环境。';
+      process.stderr.write(`CloudBase HTML MCP: ${diagnostic}\n`);
       process.exitCode = 1;
     }
   }

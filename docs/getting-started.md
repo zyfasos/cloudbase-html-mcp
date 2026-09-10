@@ -6,7 +6,7 @@
 
 **准备 Node.js → 放好完整配置文件 → 在桌面 Agent 中添加 MCP → 验证 → 开始使用。**
 
-当前 v0.4 为 **0.4.0-beta.3 测试版**，包含共享文件绑定、恢复提示和目录分享地址调整。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。beta.3 已通过四组 CI 和公共 npm 冷启动；WorkBuddy/千问办公桌面证据来自 beta.2，新版桌面复验仍待完成，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
+当前 v0.4 为 **0.4.0-beta.4 测试版**，修复了 BOM 配置读取与 CLI 参数提示，并包含此前的共享文件绑定、恢复提示和目录分享地址调整。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。beta.4 已通过本地离线回归，发布及 CI 结果见下方链接；WorkBuddy/千问办公桌面证据来自 beta.2，新版桌面复验仍待完成，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
 
 你需要支持本地 STDIO MCP 的桌面客户端，以及已开启静态托管的 CloudBase 环境。管理员可以直接提供下述完整文件；收到文件后，无需 CloudBase 账号登录或重填三个参数。人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
 
@@ -57,7 +57,11 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 <a id="for-the-recipient"></a>
 ### 收件人如何放置
 
-保留 UTF-8 纯文本格式，支持 Windows 常见的 CRLF 换行和 UTF-8 BOM。将收到的文件放在自己用户主目录下：
+保留 UTF-8 纯文本格式，支持 Windows 常见的 CRLF 换行和 UTF-8 BOM。
+
+> `0.4.0-beta.4` 已修复 BOM 紧接首个配置字段时的读取错误。仍使用 `0.4.0-beta.3` 的用户如遇 `UNSUPPORTED_CONFIG_FIELDS`，可先保存为 **UTF-8 无 BOM**，或升级到 beta.4。
+
+将收到的文件放在自己用户主目录下：
 
 ```text
 .config/cloudbase-html-mcp/credentials.env
@@ -145,7 +149,7 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
     }
   }
 }
@@ -158,7 +162,7 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.3", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
     }
   }
 }
@@ -198,7 +202,7 @@ Windows 的配置文件绝对路径不能包含 `..` 路径段；使用默认位
 自行准备配置的用户，可在本机交互式终端运行：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.3 setup
+npx -y cloudbase-html-mcp@0.4.0-beta.4 setup
 ```
 
 向导收集环境、地域及隐藏输入的 Key，只读检查通过后才保存。已有配置默认复用，输入 `edit` 修改；Key 留空则保留原值。取消或失败保留原文件，不自动修改桌面客户端配置。
@@ -236,7 +240,7 @@ v0.4 使用 `npm-shrinkwrap.json`。仍处于 v0.3 的检出不包含新 CLI，�
 收到本地 `.tgz` 时，将引号内的示例替换为实际文件路径，并保留双引号，避免空格被拆成多个参数。Windows 在命令提示符（cmd）中执行。此操作安装程序命令，不写入云端凭据：
 
 ```sh
-npm install --global --ignore-scripts "/absolute/path/cloudbase-html-mcp-0.4.0-beta.3.tgz"
+npm install --global --ignore-scripts "/absolute/path/cloudbase-html-mcp-0.4.0-beta.4.tgz"
 cloudbase-html-mcp --version
 ```
 
@@ -317,7 +321,7 @@ Agent 的顺序为：
 
 **同一文件对应多个站点：**beta.3 已修复这一场景。明确提供 A 的 `siteId` 或 `siteUrl` 时，可用默认绑定到 B 的文件更新或恢复 A；B 的内容、生命周期和默认绑定均不变。之后只按文件路径查询，仍会找到 B；继续管理 A 请保留 A 的 ID/URL。返回的 `pathBinding` 说明文件的默认绑定，顶层 `siteId` 才是本次目标。只有 `newPage` 或完成对应 pending 新建才切换已有默认绑定。
 
-如果 beta.2 报 `LOCAL_BINDING_CONFLICT`，不要下线其他站点或直接编辑 `catalog-v2.json`；下线保留路径绑定。可让用户指定一份放在未登记路径的 HTML 副本，再用原站点 ID 恢复，或升级到 beta.3 后重试原目标。
+如果 beta.2 报 `LOCAL_BINDING_CONFLICT`，不要下线其他站点或直接编辑 `catalog-v2.json`；下线保留路径绑定。可让用户指定一份放在未登记路径的 HTML 副本，再用原站点 ID 恢复，或升级到 beta.4 后重试原目标。
 
 恢复前置检查失败时，按具体错误修正：文件缺失或 HTML 无效先处理本地文件；登记锁占用先等待写入结束；凭据/托管错误先修正配置。当前机器没有目标的离线登记时不能自动认领，不将恢复请求改成另建站点。写入结果不确定时，应先查询原目标，再决定是否重试原恢复操作。
 

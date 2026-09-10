@@ -23,7 +23,7 @@
 ## v0.4 beta
 
 - 固定用户目录 credentials.env 主线、serve 默认/--config/--env 三路入口；setup 为可选辅助，新入口配置错误仍可列工具。
-- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；版本 0.4.0-beta.3，按 npm beta 标签分发。
+- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；版本 0.4.0-beta.4，按 npm beta 标签分发。
 - Node.js >=22、本地 STDIO MCP；六工具：hosting_status、publish_html、get_html、list_html、offline_html、online_html。
 - 环境管理端 API Key 换临时凭据；域名发现及严格 URL 归属核验。
 - 独立本地 `npm run setup` 向导：环境/地域预填或 JSON 导入、隐藏输入 Key、只读连接检查、私密配置保存与 JSON/TOML 接入片段；支持管理员发 Key 的无账号接入。生成的启动入口固定读取指定文件，现有环境变量入口保持兼容。
@@ -50,7 +50,7 @@ v0.3 历史证据：2026-09-09 已在用户授权的一个环境中，使用合�
 
 ## 开源与发布
 
-源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.3`，使用 npm 分发；`beta` 和 `latest` 为测试版入口，接入模板固定具体版本。
+源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.4`，使用 npm 分发；`beta` 和 `latest` 为测试版入口，接入模板固定具体版本。
 
 业务 HTML、私人环境信息、凭据、本地登记和 docs/implementation/ 不进入 Git（包括历史）；实施档案只在本地维护。
 
@@ -90,7 +90,7 @@ beta.3 将显式 siteId/siteUrl 与 localPath 默认绑定分开：文件可用�
 
 ### beta.3 发布与 CI 结果
 
-2026-09-09，`cloudbase-html-mcp@0.4.0-beta.3` 已发布，`beta`、`latest` 均指向该版本。公共 npm 全新缓存安装通过版本查询、真实 STDIO 六工具发现及缺失默认配置诊断；registry 的完整性值与发布 tarball 一致。此验证未使用真实凭据或访问 CloudBase。
+2026-09-09，`cloudbase-html-mcp@0.4.0-beta.3` 已发布，发布时 `beta`、`latest` 均指向该版本。公共 npm 全新缓存安装通过版本查询、真实 STDIO 六工具发现及缺失默认配置诊断；registry 的完整性值与发布 tarball 一致。此验证未使用真实凭据或访问 CloudBase。
 
 [发布源码 733d27d 的四组 CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34368580426) 全部通过依赖安装、缓存准备、check 和测试：
 
@@ -102,6 +102,12 @@ beta.3 将显式 siteId/siteUrl 与 localPath 默认绑定分开：文件可用�
 | Windows | 24.19.0 | 140 | 0 | 4 |
 
 Windows 的 4 项跳过沿用原有平台限定。CI 使用云端替身，不代替新版桌面和真实云端验收。npm 包内文档为发布时快照，后续验证状态以本 GitHub 文档为准。
+
+### beta.4 配置兼容修复
+
+`0.4.0-beta.4` 修复 UTF-8 BOM 紧接首个配置字段时被误判为未知字段的问题；默认文件、显式文件和旧读取入口统一处理 BOM，保留文件原文与并发修改检测。CLI 参数错误返回 `INVALID_LAUNCH_ARGUMENTS` 和合法用法，不再将未知参数或相对路径误报为配置来源冲突。
+
+本地 macOS Node 22.20.0、24.20.0 各通过 `npm run check` 和 147 项离线测试（0失败、0跳过），包括 BOM/CRLF 组合、原始文件变更检测、真实 STDIO 子进程与安装包生命周期回归。测试使用云端替身；beta.4 发布、远端 CI、公共 npm 冷启动和桌面实测结果尚待记录，不沿用 beta.3 的通过结论。
 
 ## 文档语言
 

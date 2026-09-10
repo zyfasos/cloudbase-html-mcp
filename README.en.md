@@ -24,7 +24,7 @@ Receive a completed `credentials.env` from your administrator and place it at `.
 - [Desktop clients (Chinese)](docs/clients.md): JSON and command forms for macOS and Windows.
 - [Architecture (Chinese)](docs/architecture.md): six-tool contracts and lifecycle sequences.
 
-Only one UTF-8 HTML file, up to 5 MiB, is uploaded; associated local assets are not included. Offline operations delete cloud content, and restoration requires the local file and registration. Storage success and public accessibility are reported separately. Setup itself publishes nothing.
+Only one UTF-8 HTML file, up to 20 MiB in the current source (unreleased; npm `0.4.0-beta.4` still allows 5 MiB), is uploaded; associated local assets are not included. Offline operations delete cloud content, and restoration requires the local file and registration. Storage success and public accessibility are reported separately. Setup itself publishes nothing.
 
 The full documentation is maintained in Chinese. This page is a brief overview, not a parallel translation.
 

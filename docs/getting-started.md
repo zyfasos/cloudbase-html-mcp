@@ -273,7 +273,7 @@ cloudbase-html-mcp --version
 
 > 将 `/absolute/path/report.html` 发布到我配置的 CloudBase 环境，并给我链接。
 
-使用 `publish_html` 上传**用户指定的文件**，要求 UTF-8 HTML、最多 5 MiB；不上传关联的本地资源。不为完成接入擅自上传样例或业务文件。
+使用 `publish_html` 上传**用户指定的文件**，要求 UTF-8 HTML、最多 20 MiB（当前源码；已发布的 `0.4.0-beta.4` 仍为 5 MiB）；不上传关联的本地资源。不为完成接入擅自上传样例或业务文件。
 
 成功结果包含 `siteId`、内容哈希、URL 和验证状态。需要从其他机器访问此页面时，保留站点 ID。
 

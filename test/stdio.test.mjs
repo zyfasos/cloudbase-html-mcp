@@ -24,6 +24,9 @@ test('real STDIO publishes, restarts, looks up by path, follows conflict advice 
   try {
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map((x) => x.name).sort(), ['get_html', 'hosting_status', 'list_html', 'offline_html', 'online_html', 'publish_html']);
+    for (const name of ['publish_html', 'online_html']) {
+      assert.match(tools.tools.find((tool) => tool.name === name).inputSchema.properties.localPath.description, /20 MiB/);
+    }
     const status = (await client.callTool({ name: 'hosting_status', arguments: {} })).structuredContent;
     assert.equal(status.uploadPermission, 'NOT_TESTED');
     assert.equal(status.publicVerification, 'NOT_TESTED');

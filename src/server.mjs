@@ -44,7 +44,7 @@ export function createServer(factory = () => {
   server.registerTool('publish_html', {
     description: '将用户指定的 HTML 首次发布或覆盖在线页面，仅写当前对象，不创建快照。更新同一 URL 时先 get_html，复用 siteId 或经当前环境路由校验的 siteUrl，并传查询返回的 sha256。离线页面须显式 online_html 恢复；此操作会公开 HTML。默认返回 /sites/<siteId>/ 分享地址并验证目录响应；云端仍保存 index.html，旧完整文件 URL 继续可作为目标。域名映射不变时更新 URL 不变。',
     inputSchema: {
-      localPath: z.string().min(1).describe('用户指定的本地 .html/.htm 文件绝对路径；非空有效 UTF-8，最多 5 MiB。只上传此文件，关联资源不上传。更新时仍须提供新内容所在的路径；显式 siteId/siteUrl 决定目标，即使此路径默认绑定其他站点也可使用，不改变其他站点的绑定。'),
+      localPath: z.string().min(1).describe('用户指定的本地 .html/.htm 文件绝对路径；非空有效 UTF-8，最多 20 MiB。只上传此文件，关联资源不上传。更新时仍须提供新内容所在的路径；显式 siteId/siteUrl 决定目标，即使此路径默认绑定其他站点也可使用，不改变其他站点的绑定。'),
       siteId: z.string().regex(/^s-[0-9a-f]{32}$/).optional().describe('更新目标的页面 ID，格式 s- 加 32 位小写十六进制；从首次发布结果或 get_html 获取。更新同一 URL 时复用原 ID，并传 expectedSha256；不能与 newPage=true 同传。此参数不是 URL。'),
       siteUrl: z.string().min(1).describe('更新目标 HTTPS URL，与 siteId 二选一；只接受 /sites/<合法ID>/ 或 index.html，允许片段，不接受查询参数。必须核实当前环境路由；与 expectedSha256 配套，不能与 newPage=true 同传。').optional(),
       expectedSha256: z.string().regex(/^[0-9a-f]{64}$/).optional().describe('更新前 get_html 返回的云端当前 sha256，64 位小写十六进制；与 siteId 或 siteUrl 配套必填。不是新文件的哈希，也不要使用本地登记中的旧哈希；冲突后重新查询再判断。首次新建时省略。'),
@@ -86,7 +86,7 @@ export function createServer(factory = () => {
     description: '将已登记的离线页面重新公开上线，读取本次用户指定的 HTML 并恢复原 siteId 路径，不写快照。云端须不存在；已在线时使用 publish_html。此前上线超时但已写入相同内容可验证完成。要求启用本地目录。',
     inputSchema: {
       siteId: siteIdField, siteUrl: siteUrlField,
-      localPath: z.string().min(1).describe('本次用户明确指定的 .html/.htm 绝对路径，UTF-8、非空、最多 5 MiB；不静默选用旧文件。siteId、siteUrl 二选一另行提供，决定本次恢复目标；文件即使默认绑定其他站点也可作为内容来源，其他站点及默认绑定保持不变。'),
+      localPath: z.string().min(1).describe('本次用户明确指定的 .html/.htm 绝对路径，UTF-8、非空、最多 20 MiB；不静默选用旧文件。siteId、siteUrl 二选一另行提供，决定本次恢复目标；文件即使默认绑定其他站点也可作为内容来源，其他站点及默认绑定保持不变。'),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   }, (args) => run(() => service().online(args), args, 'online_html'));

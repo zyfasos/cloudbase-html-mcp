@@ -109,7 +109,7 @@ sequenceDiagram
 | offline_html | 一个选择器及 expectedSha256 | 删除当前对象及严格匹配的旧快照；保留登记，分开返回生命周期和清理完成度。 |
 | online_html | siteId 或 siteUrl，另带 localPath | 已登记离线站点恢复；不从旧快照读取内容。 |
 
-localPath 必须为绝对 .html/.htm 文件、非空有效 UTF-8、最多 5 MiB；用 HTML 标签作基本检测，不是完整解析器。只上传原始字节，相对资源仅告警。
+localPath 必须为绝对 .html/.htm 文件、非空有效 UTF-8、最多 20 MiB；用 HTML 标签作基本检测，不是完整解析器。只上传原始字节，相对资源仅告警。
 
 在线更新必须带 get_html 返回的实际旧哈希。newPage=true 不与 ID/URL 同传；原站点保留，验证成功才切换路径绑定。显式 siteId/siteUrl 决定更新或恢复目标，localPath 提供内容；如果路径默认绑定另一站点，保留该绑定及其 pending、站点记录和云端内容，只更新目标站点并记录 sourcePaths。无绑定的来源路径可登记到目标站点。离线站点不经 publish_html 隐式公开。
 

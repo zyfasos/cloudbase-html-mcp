@@ -101,7 +101,7 @@ test('input rejects traversal, invalid UTF-8, missing file, relative path and ov
   await assert.rejects(loadHtml('test.html'), { code: 'ABSOLUTE_HTML_PATH_REQUIRED' });
   await assert.rejects(loadHtml('/nonexistent-mcp-test.html'), { code: 'FILE_NOT_READABLE' });
   await assert.rejects(loadHtml(await fixture(t, Buffer.from([255, 254]))), { code: 'UTF8_REQUIRED' });
-  await assert.rejects(loadHtml(await fixture(t, Buffer.alloc(5 * 1024 * 1024 + 1))), { code: 'INVALID_FILE_SIZE' });
+  await assert.rejects(loadHtml(await fixture(t, Buffer.alloc(20 * 1024 * 1024 + 1))), { code: 'INVALID_FILE_SIZE' });
 });
 
 test('configuration is required; domains reject credentials and paths', () => {
@@ -210,4 +210,31 @@ test('overlapping publishes reject busy and allow retry after the first complete
   assert.equal(result.status, 'PUBLISHED');
   const retried = await publisher.publish({ localPath, siteId: result.siteId, expectedSha256: result.sha256 });
   assert.equal(retried.writeState, 'STORAGE_VERIFIED');
+});
+
+
+test('a 20 MiB HTML publishes and passes public hash verification without truncation', async (t) => {
+  const bytes = Buffer.alloc(20 * 1024 * 1024, ' ');
+  bytes.write('<html>'); bytes.write('</html>', bytes.length - 7);
+  const cloud = new FakeCloud();
+  const publisher = new Publisher(cloud, async () => new Response(bytes, { headers: { 'content-type': 'text/html' } }));
+  const result = await publisher.publish({ localPath: await fixture(t, bytes) });
+  assert.equal(result.status, 'PUBLISHED');
+  assert.equal(result.sha256, sha256(bytes));
+  assert.equal(result.publicCheck.verified, true);
+  assert.equal(cloud.objects.get(`sites/${result.siteId}/index.html`).bytes, bytes.length);
+});
+
+test('20 MiB plus one byte is rejected before upload and during public verification', async (t) => {
+  const bytes = Buffer.alloc(20 * 1024 * 1024 + 1, ' ');
+  bytes.write('<html>'); bytes.write('</html>', bytes.length - 7);
+  const cloud = new FakeCloud();
+  await assert.rejects(new Publisher(cloud).publish({ localPath: await fixture(t, bytes) }), { code: 'INVALID_FILE_SIZE' });
+  assert.equal(cloud.puts.length, 0);
+  for (const headers of [{}, { 'content-length': String(bytes.length) }]) {
+    const result = await verifyPublic('https://example.com/index.html', sha256(bytes),
+      async () => new Response(bytes, { headers: { ...headers, 'content-type': 'text/html' } }));
+    assert.equal(result.verified, false);
+    assert.equal(result.reason, 'PUBLIC_FETCH_FAILED');
+  }
 });

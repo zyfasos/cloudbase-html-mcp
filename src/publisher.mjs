@@ -6,7 +6,7 @@ import { accessCandidates, parseSiteUrl, validateSiteUrl } from './domains.mjs';
 import { currentKey, cleanupSnapshots } from './cleanup.mjs';
 import { publicRecovery } from './recovery.mjs';
 
-export const MAX_HTML_BYTES = 5 * 1024 * 1024;
+export const MAX_HTML_BYTES = 20 * 1024 * 1024;
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export function validateSiteId(siteId) {
   if (!/^s-[0-9a-f]{32}$/.test(siteId ?? '')) throw new PublishError('INPUT', 'INVALID_SITE_ID');

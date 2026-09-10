@@ -6,7 +6,7 @@
 
 CloudBase HTML MCP 面向国内桌面 Agent 用户，将本地报告、演示或交互页面发布到自己的 CloudBase 环境。修改后更新原链接，需要时下线，再从指定的本地文件恢复。
 
-本地 STDIO MCP · 六工具 · MIT · 当前测试版 `0.4.0-beta.4`。[验证状态](PROJECT.md#v04-验证与发布安排)
+本地 STDIO MCP · 六工具 · MIT · 当前测试版 `0.4.0-beta.5`。[验证状态](PROJECT.md#v04-验证与发布安排)
 
 <a id="为什么做这个工具"></a>
 ## 为什么选择它
@@ -48,7 +48,7 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.5", "serve"]
     }
   }
 }
@@ -61,7 +61,7 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.5", "serve"]
     }
   }
 }
@@ -95,7 +95,7 @@ WorkBuddy、千问办公和 QoderWork 的入口与依据见 [客户端指南](do
 <a id="发布前须知"></a>
 ## 适用范围
 
-- 上传单份非空 UTF-8 `.html`/`.htm` 文件，最多 20 MiB（此调整尚未发布，npm `0.4.0-beta.4` 仍为 5 MiB）；关联的本地图片、CSS、JS 不会一起上传，发布前应确认页面可独立使用。
+- 上传单份非空 UTF-8 `.html`/`.htm` 文件，最多 20 MiB；关联的本地图片、CSS、JS 不会一起上传，发布前应确认页面可独立使用。
 - 发布产生公网访问链接。本工具不提供读者登录、密码保护或协同编辑；请发布适合通过公网链接分享的内容。
 - 本地文件是内容来源。不备份 HTML、不新增项目快照；列表/下线/恢复依赖本地登记，不跨机器同步。
 - 下线删除云端内容，保留本地文件才能恢复；不清除浏览器/CDN 缓存。COS 原生版本控制启用、暂停或无法核实时，会阻止破坏性清理。

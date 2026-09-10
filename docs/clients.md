@@ -1,6 +1,6 @@
 # 桌面客户端接入
 
-本指南说明如何手动添加本地 STDIO MCP。当前 v0.4 为 **0.4.0-beta.4 测试版**。以下实测证据来自 beta.2：WorkBuddy 与千问办公的 macOS 接入和发布已获用户实测确认，WorkBuddy 下线也已通过；同 URL 更新及其他客户端仍待验证；恢复实测暴露了共享文件绑定问题，见下方记录。也可按 [快速开始](getting-started.md#install-from-source-or-a-local-package) 使用本地包或已取得的 v0.4 源码。
+本指南说明如何手动添加本地 STDIO MCP。当前 v0.4 为 **0.4.0-beta.5 测试版**。以下实测证据来自 beta.2：WorkBuddy 与千问办公的 macOS 接入和发布已获用户实测确认，WorkBuddy 下线也已通过；同 URL 更新及其他客户端仍待验证；恢复实测暴露了共享文件绑定问题，见下方记录。也可按 [快速开始](getting-started.md#install-from-source-or-a-local-package) 使用本地包或已取得的 v0.4 源码。
 
 <a id="common-preparation--公共准备"></a>
 ## 公共准备
@@ -24,7 +24,7 @@
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.5", "serve"]
     }
   }
 }
@@ -37,7 +37,7 @@
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.4", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.5", "serve"]
     }
   }
 }
@@ -61,32 +61,32 @@
 <a id="command-forms--命令表单"></a>
 ## 命令表单
 
-以下命令固定使用 0.4.0-beta.4，不自动升级到其他版本。
+以下命令固定使用 0.4.0-beta.5，不自动升级到其他版本。
 
 macOS 完整命令：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.4 serve
+npx -y cloudbase-html-mcp@0.4.0-beta.5 serve
 ```
 
 Windows 完整命令：
 
 ```text
-cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.4 serve
+cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.5 serve
 ```
 
 如果界面将命令和参数分开填写：
 
 | 系统 | 命令 | 参数，每项单独填写 |
 | --- | --- | --- |
-| macOS | `npx` | `-y`、`cloudbase-html-mcp@0.4.0-beta.4`、`serve` |
-| Windows | `cmd.exe` | `/d`、`/c`、`npx`、`-y`、`cloudbase-html-mcp@0.4.0-beta.4`、`serve` |
+| macOS | `npx` | `-y`、`cloudbase-html-mcp@0.4.0-beta.5`、`serve` |
+| Windows | `cmd.exe` | `/d`、`/c`、`npx`、`-y`、`cloudbase-html-mcp@0.4.0-beta.5`、`serve` |
 
 服务名称填 `cloudbase_html`，传输类型选 STDIO，环境变量留空。界面明确使用“秒”且覆盖连接或工具调用时，可设置 180 秒；毫秒字段不能直接填 180。没有文档依据时，不自行添加客户端 JSON 超时字段。
 
 图形界面找不到 `npx` 时，查明它在本机的真实安装位置，使用实际绝对路径，参数继续分开填写。Windows 的 `.cmd` 启动器保留 `cmd.exe` 包装，必要时填写实际系统程序路径。不要照搬其他人的用户名或安装路径。
 
-从 beta.2/beta.3 升级时，将连接器命令或 JSON 中的包版本改为 `0.4.0-beta.4`，保存并重载 MCP；无需移动凭据或站点登记。升级本身不会发布、恢复或下线任何站点。
+从旧版升级时，将连接器命令或 JSON 中的包版本改为 `0.4.0-beta.5`，保存并重载 MCP；无需移动凭据或站点登记。升级本身不会发布、恢复或下线任何站点。
 
 <a id="client-specific-entry-points--各客户端入口"></a>
 ## 各客户端入口
@@ -98,7 +98,7 @@ cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.4 serve
 | WorkBuddy | 截图入口为“专家·技能·连接器”→“自定义连接器”；官方新版指南为“插件→MCP 服务器”。进入“配置 MCP”后使用同一 JSON。截图包括“服务管理→配置 MCP”的 `mcpServers` 编辑器，以及命令和参数分开的 STDIO 表单。 | macOS 5.5.4（发布/下线截图可见）；用户确认自主接入、只读调用、发布和下线通过，更新与重启恢复待验收。 |
 | 千问办公 | “扩展→连接器→添加”。截图包括 JSON 导入和接受完整命令的 STDIO 表单，超时字段明确使用秒。 | 此前参考界面版本为 Mac 1.0.4；用户确认 JSON 导入、只读调用、重复发布保护和明确另建页面通过；本轮精确客户端版本未在截图展示。 |
 
-这是一份接入指南，兼容性结论以实际验证为准。beta.4 的 macOS/Windows 运行时 CI 矩阵与公共 npm 冷启动已通过，结果见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)；Windows 桌面接入、QoderWork 和豆包工作仍待实测。不同版本可能提供不同控件，验证后按实际版本更新本表。
+这是一份接入指南，兼容性结论以实际验证为准。beta.5 的发布与验证进度见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)；Windows 桌面接入、QoderWork 和豆包工作仍待实测。不同版本可能提供不同控件，验证后按实际版本更新本表。
 
 <a id="acceptance-record--实测记录"></a>
 ## 实测记录
@@ -135,7 +135,7 @@ cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.4 serve
 
 这证明最终恢复成功，但**不属于完整 MCP 流程通过**。截图中的修改对象是本地登记数据；另行比对本机 npx 安装包与已验证 beta.2 产物，31 个包文件一致，未发现 MCP 程序被改动的证据。直接编辑登记绕过了工具的锁和原子保存流程，不作为接入或恢复方法。
 
-beta.3 已修复显式目标与文件默认绑定混用的问题，并补充离线、真实 STDIO 子进程及实际安装包回归：恢复 A 保留 B，更新 A 也保持原 URL。当前 beta.4 仍需升级后的桌面实测再次验收；不要将本地替身测试算作真实云端通过。
+beta.3 已修复显式目标与文件默认绑定混用的问题，并补充离线、真实 STDIO 子进程及实际安装包回归：恢复 A 保留 B，更新 A 也保持原 URL。当前 beta.5 仍需升级后的桌面实测再次验收；不要将本地替身测试算作真实云端通过。
 
 每次实际验证记录：操作系统、客户端和 Node 版本、输入方式、启动程序及不含密钥的参数、六工具发现、目标环境、`list_html`、授权测试文件的发布/更新结果及诊断。真实凭据、环境信息和站点 URL 保留在私密本地证据中。
 

@@ -1,12 +1,12 @@
 {
   "name": "cloudbase-html-mcp",
-  "version": "0.4.0-beta.4",
+  "version": "0.4.0-beta.5",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "cloudbase-html-mcp",
-      "version": "0.4.0-beta.4",
+      "version": "0.4.0-beta.5",
       "license": "MIT",
       "dependencies": {
         "@modelcontextprotocol/sdk": "1.30.0",

@@ -9,6 +9,8 @@ import { accessCandidates } from './domains.mjs';
 import { recoveryFor } from './recovery.mjs';
 import { fileURLToPath } from 'node:url';
 import { realpath } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { classifyError } from './errors.mjs';
 
 export function createServer(factory = () => {
   const config = readConfig();
@@ -28,7 +30,12 @@ export function createServer(factory = () => {
     catch (error) {
       if (error instanceof PublishError && configuration) error = new PublishError(error.stage, error.code, { ...error.details, configuration });
       if (error instanceof PublishError) return result({ ok: false, stage: error.stage, code: error.code, ...error.details, ...recoveryFor(error, args, tool) }, true);
-      return result({ ok: false, code: 'INTERNAL_ERROR', ...recoveryFor(new PublishError('INTERNAL', 'INTERNAL_ERROR'), args, tool) }, true);
+      const { errorType, errorCode } = classifyError(error);
+      const diagnostic = { errorId: randomUUID(), errorType, ...(errorCode ? { errorCode } : {}) };
+      try { process.stderr.write(JSON.stringify({ code: 'INTERNAL_ERROR', tool, ...diagnostic }) + '\n'); }
+      catch { /* A diagnostic sink failure must not replace the original tool error. */ }
+      return result({ ok: false, stage: 'INTERNAL', code: 'INTERNAL_ERROR', diagnostic,
+        ...recoveryFor(new PublishError('INTERNAL', 'INTERNAL_ERROR'), args, tool) }, true);
     }
   }
   server.registerTool('hosting_status', {
@@ -40,7 +47,7 @@ export function createServer(factory = () => {
     const access = accessCandidates(store, 'sites/');
     return { ok: true, ...(configuration ? { configuration } : {}), envId: p.backend.config.envId, region: store.region, publicBaseUrl: access.candidates[0]?.url.replace(/\/sites\/$/, ''),
       access, management: { catalogVersion: 2, enabled: Boolean(p.registry), deletionVersioningCheck: 'REQUIRED_PER_OPERATION' }, publicVerification: 'NOT_TESTED', registry: { enabled: Boolean(p.registry), directory: p.registry?.directory }, uploadPermission: 'NOT_TESTED' };
-  }));
+  }, {}, 'hosting_status'));
   server.registerTool('publish_html', {
     description: '将用户指定的 HTML 首次发布或覆盖在线页面，仅写当前对象，不创建快照。更新同一 URL 时先 get_html，复用 siteId 或经当前环境路由校验的 siteUrl，并传查询返回的 sha256。离线页面须显式 online_html 恢复；此操作会公开 HTML。默认返回 /sites/<siteId>/ 分享地址并验证目录响应；云端仍保存 index.html，旧完整文件 URL 继续可作为目标。域名映射不变时更新 URL 不变。',
     inputSchema: {

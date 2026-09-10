@@ -20,6 +20,9 @@ export function recoveryFor(error, args = {}, tool) {
     retryable, maxRetries: retryable ? 1 : 0,
     next_step: { action, message, ...next },
   });
+  if (code === 'ONE_PAGE_SELECTOR_REQUIRED' && (tool === 'online_html' || details.operation === 'online')) {
+    return result('select_site', '恢复必须明确提供 siteId 或 siteUrl，且只能选一个；localPath 只是本次内容来源，不能替代目标。可先 list_html 查找本地已登记站点，确认目标后再恢复。');
+  }
   if (details.operation === 'offline' && siteId && lifecycleFailure) {
     return result('inspect_offline', '先 get_html 核对当前对象和未完成操作；确认后用原 expectedSha256 重试 offline_html。已下线但清理未完成不能宣称空间全部回收。', {
       ...query(siteId), resume: { tool: 'offline_html', suggested_args: { siteId, expectedSha256: details.expectedSha256 } },

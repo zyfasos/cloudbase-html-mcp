@@ -31,6 +31,11 @@ test('real STDIO publishes, restarts, looks up by path, follows conflict advice 
     assert.equal(status.uploadPermission, 'NOT_TESTED');
     assert.equal(status.publicVerification, 'NOT_TESTED');
     assert.equal(status.registry.enabled, true);
+    const missingTarget = await client.callTool({ name: 'online_html', arguments: { localPath } });
+    assert.equal(missingTarget.isError, true);
+    assert.equal(missingTarget.structuredContent.code, 'ONE_PAGE_SELECTOR_REQUIRED');
+    assert.equal(missingTarget.structuredContent.stage, 'INPUT');
+    assert.equal(missingTarget.structuredContent.next_step.action, 'select_site');
     const response = await client.callTool({ name: 'publish_html', arguments: { localPath } });
     assert.equal(response.isError, false);
     first = response.structuredContent;

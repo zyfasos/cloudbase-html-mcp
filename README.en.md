@@ -8,7 +8,7 @@ The motivation is simple: share an agent-generated report, demo or interactive p
 
 [CloudBase](https://cloudbase.net/) is Tencent Cloud's application development platform. This tool uses its static hosting and environment authentication for one focused workflow: publishing a single local HTML file to your own environment. Cloud service charges are separate from the MIT-licensed tool. See the [Chinese positioning notes](PROJECT.md#positioning-and-related-tools) for related projects and scope.
 
-**0.4.0-beta.5 is a testing release.** It raises the single-HTML limit to 20 MiB and includes the earlier BOM, CLI diagnostics and site-management fixes. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.5 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
+**0.4.0-beta.6 is a testing release.** It improves large-HTML resource scanning, error diagnostics and restore-target validation, while retaining the 20 MiB limit. WorkBuddy and Qianwen Office onboarding/publishing evidence comes from beta.2; desktop acceptance of beta.6 remains pending. See [verification status](PROJECT.md#v04-验证与发布安排). Node.js 22+ is required; the package does not bundle Node.
 
 ## Workflow
 

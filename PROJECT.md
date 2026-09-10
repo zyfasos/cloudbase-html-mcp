@@ -26,7 +26,7 @@
 ## v0.4 beta
 
 - 固定用户目录 credentials.env 主线、serve 默认/--config/--env 三路入口；setup 为可选辅助，新入口配置错误仍可列工具。
-- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；版本 0.4.0-beta.5，按 npm beta 标签分发。
+- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；版本 0.4.0-beta.6，按 npm beta 标签分发。
 - Node.js >=22、本地 STDIO MCP；六工具：hosting_status、publish_html、get_html、list_html、offline_html、online_html。
 - 环境管理端 API Key 换临时凭据；域名发现及严格 URL 归属核验。
 - 独立本地 `npm run setup` 向导：环境/地域预填或 JSON 导入、隐藏输入 Key、只读连接检查、私密配置保存与 JSON/TOML 接入片段；支持管理员发 Key 的无账号接入。生成的启动入口固定读取指定文件，现有环境变量入口保持兼容。
@@ -53,7 +53,7 @@ v0.3 历史证据：2026-09-09 已在用户授权的一个环境中，使用合�
 
 ## 开源与发布
 
-源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.5`，使用 npm 分发；`beta` 和 `latest` 为测试版入口，接入模板固定具体版本。
+源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.6`，使用 npm 分发；`beta` 和 `latest` 为测试版入口，接入模板固定具体版本。
 
 业务 HTML、私人环境信息、凭据、本地登记和 docs/implementation/ 不进入 Git（包括历史）；实施档案只在本地维护。
 
@@ -127,9 +127,17 @@ Windows 的 4 项跳过为原有平台限定测试。CI 和公共包验证不能
 
 ## beta.5：20 MiB 单 HTML
 
-单 HTML 上限由 5 MiB 提高到 20 MiB（20,971,520 字节），本地读取、发布/恢复及公网验证共用该限制。超出上限仍在上传前拒绝。此变更纳入 `0.4.0-beta.5`，旧版 beta.4 仍为 5 MiB。Node22 本地 check 与149项离线测试通过；[功能提交0734947的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34455806494)通过。2026-09-10，beta.5 已发布，`beta` 和 `latest` 均指向该版本。全新 npm 缓存安装通过版本查询、六工具发现、BOM 配置诊断及 20 MiB 文件读取/内容校验、多 1 字节拒绝；registry 完整性与发布包一致。内容校验使用合成响应，未访问真实 CloudBase。
+单 HTML 上限由 5 MiB 提高到 20 MiB（20,971,520 字节），本地读取、发布/恢复及公网验证共用该限制。超出上限仍在上传前拒绝。此变更纳入 `0.4.0-beta.5`，旧版 beta.4 仍为 5 MiB。Node22 本地 check 与149项离线测试通过；[功能提交0734947的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34455806494)通过。2026-09-10，beta.5 已发布，发布时 `beta` 和 `latest` 均指向该版本。全新 npm 缓存安装通过版本查询、六工具发现、BOM 配置诊断及 20 MiB 文件读取/内容校验、多 1 字节拒绝；registry 完整性与发布包一致。内容校验使用合成响应，未访问真实 CloudBase。
 
 [发布源码857199f的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34456610781)全部通过：macOS Node22/24 各149通过，Windows Node22/24 各145通过及4项原有平台跳过，均零失败。20MiB真实云端及桌面验收仍待完成。npm 包内文档为发布快照，GitHub 文档另补发布结果。
+
+## beta.6：扫描性能与错误诊断
+
+- 相对资源告警改为单向扫描，覆盖畸形 HTML 标签和未闭合 CSS URL，避免二次方扫描耗时；仍只是提示，不新增 HTML 校验或安全过滤。
+- 未预期异常增加安全诊断 ID/类型/已识别代码及 stderr 关联日志，不输出原始异常文本；公网验证细分超时、DNS、TLS、中止与响应超限，其他错误保留原分类。
+- online_html 缺少 siteId/siteUrl 时先返回明确的输入错误，不受路径绑定状态影响，不取得登记锁或连接云端；幂等标注与正常生命周期不变。
+
+beta.6 正在准备发布。macOS Node22.20.0 与24.20.0 各通过 check 和155项离线测试，覆盖实际安装包与真实 STDIO 子进程（云端使用测试替身）。远端 CI、公共 npm 冷启动及新版桌面实测结果待补；不沿用 beta.5 的验收结论。
 
 ## 文档语言
 

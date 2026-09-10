@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import { Publisher } from '../src/publisher.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { Publisher, loadHtml, verifyPublic } from '../src/publisher.mjs';
 import { PageRegistry } from '../src/registry.mjs';
-import { PublishError } from '../src/errors.mjs';
+import { PublishError, classifyError } from '../src/errors.mjs';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { currentKey } from '../src/cleanup.mjs';
 import { FakeCloud, fixture, scope } from './helpers.mjs';
 
@@ -13,6 +17,124 @@ async function setup(t, Registry = PageRegistry) {
   const registry = new Registry(files.registryDir, scope);
   return { ...files, cloud, registry, publisher: new Publisher(cloud, cloud.fetch, registry) };
 }
+
+test('resource warnings detect real attributes and CSS URLs without matching attribute-name suffixes or quoted markup', async (t) => {
+  const { localPath } = await fixture(t);
+  for (const markup of [
+    '<IMG src="images/a.png">', '<script src=app.js></script>', '<link href=style.css>',
+    '<iframe src="/local/page"></iframe>', '<source src=video.webm>',
+    '<img src="https://example.com/a" href="local.html">',
+    '<img title="x > y" src="a.png">', '<img title="x < y" src="a.png">',
+    '<style>body { background: url( images/a.png ) }</style>',
+    '<div style="background: URL(\'images/a.png\')"></div>',
+  ]) {
+    await writeFile(localPath, '<html>' + markup + '</html>');
+    assert.equal((await loadHtml(localPath)).warnings.length, 1, markup);
+  }
+  for (const markup of [
+    '<img src="https://example.com/a">', '<img src="//example.com/a">',
+    '<img src="data:image/png;base64,AAAA">', '<source src="#fragment">',
+    '<img data-src="lazy.png">', '<img title="src=not-an-attribute">',
+    '<!-- <img src="comment.png"> -->', '<img title="src=\'fake.png\'" src="https://example.com/a">',
+    '<style>body { background: url("https://example.com/a") }</style>',
+  ]) {
+    await writeFile(localPath, '<html>' + markup + '</html>');
+    assert.equal((await loadHtml(localPath)).warnings.length, 0, markup);
+  }
+});
+
+test('20 MiB malformed HTML and CSS finish scanning in an isolated process', async (t) => {
+  const { localPath } = await fixture(t);
+  const limit = 20 * 1024 * 1024;
+  const module = new URL('../src/publisher.mjs', import.meta.url).href;
+  const code = `import {loadHtml} from ${JSON.stringify(module)}; const r=await loadHtml(process.argv[1]); console.log(r.bytes.length);`;
+  for (const token of ['<img ', 'url(']) {
+    const body = '<html>' + token.repeat(Math.floor((limit - 13) / token.length)) + '</html>';
+    await writeFile(localPath, body);
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', code, localPath], { encoding: 'utf8', timeout: 10000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(Number(result.stdout.trim()), Buffer.byteLength(body));
+  }
+});
+
+test('public failure reasons distinguish safe error categories and never return raw messages', async () => {
+  const cases = [
+    [new DOMException('synthetic-secret', 'TimeoutError'), 'TIMEOUT'],
+    [new DOMException('synthetic-secret', 'AbortError'), 'ABORTED'],
+    [Object.assign(new TypeError('synthetic-secret'), { cause: { code: 'ENOTFOUND' } }), 'DNS_ERROR'],
+    [Object.assign(new TypeError('synthetic-secret'), { cause: { code: 'CERT_HAS_EXPIRED' } }), 'TLS_ERROR'],
+    [Object.assign(new TypeError('synthetic-secret'), { cause: { code: 'UND_ERR_BODY_TIMEOUT' } }), 'TIMEOUT'],
+    [new PublishError('HTTP', 'RESPONSE_TOO_LARGE'), 'RESPONSE_TOO_LARGE'],
+    [Object.assign(new Error('synthetic-secret'), { code: 'unknown-secret-code' }), 'PUBLIC_FETCH_FAILED'],
+  ];
+  for (const [error, reason] of cases) {
+    const result = await verifyPublic('https://example.invalid/', '0'.repeat(64), async () => { throw error; });
+    assert.deepEqual(result, { verified: false, reason });
+    assert.ok(!JSON.stringify(result).includes('secret'));
+  }
+});
+
+test('error classification tolerates missing values, cycles and throwing getters without exposing arbitrary fields', () => {
+  const cycle = { name: 'private-name', code: 'private-code' }; cycle.cause = cycle;
+  const getters = Object.defineProperties({}, {
+    name: { get() { throw new Error('private-name'); } },
+    code: { get() { throw new Error('private-code'); } },
+    cause: { get() { throw new Error('private-cause'); } },
+  });
+  for (const error of [null, undefined, 'private-string', cycle, getters]) {
+    assert.deepEqual(classifyError(error), { errorType: 'UnknownError', publicReason: 'PUBLIC_FETCH_FAILED' });
+  }
+});
+
+test('real STDIO unexpected errors correlate safe diagnostics with stderr and do not leak input', async () => {
+  const secret = 'synthetic-secret-marker';
+  const client = new Client({ name: 'unexpected-error-test', version: '1.0.0' });
+  const transport = new StdioClientTransport({ command: process.execPath,
+    args: [fileURLToPath(new URL('./fixtures/unexpected-error.mjs', import.meta.url))],
+    env: { TEST_SECRET_MARKER: secret }, stderr: 'pipe' });
+  let stderr = '';
+  transport.stderr.on('data', (chunk) => { stderr += chunk; });
+  const diagnostics = [];
+  try {
+    await client.connect(transport);
+    assert.equal((await client.listTools()).tools.length, 6);
+    for (let i = 0; i < 2; i++) {
+      const result = await client.callTool({ name: 'hosting_status', arguments: {} });
+      assert.equal(result.isError, true);
+      assert.equal(result.structuredContent.code, 'INTERNAL_ERROR');
+      const diagnostic = result.structuredContent.diagnostic;
+      assert.equal(diagnostic.errorType, 'TypeError');
+      assert.equal(diagnostic.errorCode, 'EACCES');
+      assert.match(diagnostic.errorId, /^[0-9a-f-]{36}$/);
+      assert.ok(!JSON.stringify(result).includes(secret));
+      diagnostics.push(diagnostic);
+    }
+  } finally { await client.close(); }
+  assert.notEqual(diagnostics[0].errorId, diagnostics[1].errorId);
+  assert.ok(!stderr.includes(secret));
+  const logs = stderr.trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(logs.length, 2);
+  for (let i = 0; i < 2; i++) assert.deepEqual(logs[i], { code: 'INTERNAL_ERROR', tool: 'hosting_status', ...diagnostics[i] });
+});
+
+test('online requires an explicit selector before registry or cloud work for all path binding states', async (t) => {
+  const { publisher, registry, cloud, localPath } = await setup(t);
+  for (const state of ['unbound', 'online', 'offline']) {
+    if (state === 'online') await publisher.publish({ localPath });
+    if (state === 'offline') {
+      const page = await publisher.get({ localPath });
+      await publisher.offline({ siteId: page.siteId, expectedSha256: page.sha256 });
+    }
+    const acquire = t.mock.method(registry, 'acquire', () => { throw new Error('must not acquire'); });
+    const connect = t.mock.method(cloud, 'connect', () => { throw new Error('must not connect'); });
+    try {
+      await assert.rejects(publisher.online({ localPath }), { stage: 'INPUT', code: 'ONE_PAGE_SELECTOR_REQUIRED' });
+      assert.equal(acquire.mock.callCount(), 0, state);
+      assert.equal(connect.mock.callCount(), 0, state);
+    } finally { acquire.mock.restore(); connect.mock.restore(); }
+  }
+});
 
 test('rebound paths are not offered as selectors for the former site, whose source history remains available', async (t) => {
   const { publisher, cloud, localPath } = await setup(t);

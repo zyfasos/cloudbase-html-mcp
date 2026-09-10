@@ -235,6 +235,6 @@ test('20 MiB plus one byte is rejected before upload and during public verificat
     const result = await verifyPublic('https://example.com/index.html', sha256(bytes),
       async () => new Response(bytes, { headers: { ...headers, 'content-type': 'text/html' } }));
     assert.equal(result.verified, false);
-    assert.equal(result.reason, 'PUBLIC_FETCH_FAILED');
+    assert.equal(result.reason, 'RESPONSE_TOO_LARGE');
   }
 });

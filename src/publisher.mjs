@@ -5,6 +5,8 @@ import { PublishError, readLimited } from './cloudbase.mjs';
 import { accessCandidates, parseSiteUrl, validateSiteUrl } from './domains.mjs';
 import { currentKey, cleanupSnapshots } from './cleanup.mjs';
 import { publicRecovery } from './recovery.mjs';
+import { hasRelativeResources } from './html-resources.mjs';
+import { classifyError } from './errors.mjs';
 
 export const MAX_HTML_BYTES = 20 * 1024 * 1024;
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -43,10 +45,7 @@ export async function loadHtml(localPath) {
     if (!/<html[\s>]/i.test(html)) throw new PublishError('INPUT', 'HTML_DOCUMENT_REQUIRED');
     // This is a dependency warning, not a security scanner or HTML sanitizer.
     const warnings = [];
-    const refs = [...html.matchAll(/<(?:script|img|link|iframe|source)\b[^>]*\b(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)]
-      .map((match) => match[1] ?? match[2] ?? match[3]);
-    refs.push(...[...html.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)].map((match) => match[1].trim()));
-    if (refs.some((ref) => !/^(https?:|data:|\/\/|#)/i.test(ref))) {
+    if (hasRelativeResources(html)) {
       warnings.push('检测到可能的相对资源引用；本工具仅上传此 HTML，关联文件不会一起上传。');
     }
     return { bytes, warnings };
@@ -72,8 +71,8 @@ export async function verifyPublic(url, expectedHash, fetcher = fetch) {
     const defaultDomainNotice = hashMatches && htmlResponse && attachment && target.hostname.endsWith('.tcloudbaseapp.com');
     return { verified: hashMatches && htmlResponse && !attachment,
       defaultDomainNotice, httpStatus: response.status, hashMatches, contentType: type, attachment };
-  } catch {
-    return { verified: false, reason: 'PUBLIC_FETCH_FAILED' };
+  } catch (error) {
+    return { verified: false, reason: classifyError(error).publicReason };
   }
 }
 
@@ -152,6 +151,7 @@ export class Publisher {
     try {
       const { bytes, warnings } = await loadHtml(localPath);
       if (siteId !== undefined && siteUrl !== undefined) throw new PublishError('INPUT', 'ONE_PAGE_SELECTOR_REQUIRED');
+      if (restoring && !siteId && !siteUrl) throw new PublishError('INPUT', 'ONE_PAGE_SELECTOR_REQUIRED');
       if (newPage && (siteId || siteUrl)) throw new PublishError('INPUT', 'NEW_PAGE_WITH_SITE_ID');
       if (expectedSha256 && !siteId && !siteUrl) throw new PublishError('INPUT', 'EXPECTED_HASH_WITHOUT_SITE_ID');
       if (siteUrl) parseSiteUrl(siteUrl);
@@ -162,7 +162,6 @@ export class Publisher {
         throw new PublishError('REGISTRY', bound.lifecycle === 'offline' ? 'PAGE_OFFLINE' : 'LOCAL_SITE_EXISTS',
           { siteId: bound.siteId, pendingRegistration: bound.pending });
       }
-      if (restoring && !siteId && !siteUrl) throw new PublishError('INPUT', 'ONE_PAGE_SELECTOR_REQUIRED');
       let selected;
       if (siteId || siteUrl) selected = await this.target(siteUrl ? { siteUrl } : { siteId }, registration?.catalog);
       siteId = selected?.siteId ?? 's-' + randomUUID().replaceAll('-', '');

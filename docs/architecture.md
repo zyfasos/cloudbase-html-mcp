@@ -31,6 +31,7 @@ flowchart LR
 | [setup.mjs](../scripts/setup.mjs) / [向导逻辑](../src/setup.mjs) | 独立交互式 CLI，环境/地域预填、隐藏输入 API Key、只读检查、生成客户端配置；不占用 MCP STDIO，不自动修改客户端。 |
 | [config-file.mjs](../src/config-file.mjs) / [start.mjs](../scripts/start.mjs) | 仓库外私密文件读取与原子保存；新默认入口可受控收紧权限，旧 start 显式文件入口继续严格失败退出。 |
 | [publisher.mjs](../src/publisher.mjs) | 文件验证、目标解析协调、当前对象发布、下线、恢复、列表与公网验证。 |
+| [html-resources.mjs](../src/html-resources.mjs) | 单向扫描 HTML 属性及 CSS URL，提示相对资源；不验证完整语法、不作为安全检查。 |
 | [registry.mjs](../src/registry.mjs) | v2 站点目录、v1 兼容迁移、环境级锁、路径绑定和未完成操作。 |
 | [domains.mjs](../src/domains.mjs) | 网关发现、候选筛选、规范 URL 解析与当前环境归属校验。 |
 | [cloudbase.mjs](../src/cloudbase.mjs) | 配置、临时凭据、官方 TCB/COS SDK 适配、版本控制闸门、分页与逐对象删除结果检查。 |
@@ -109,7 +110,13 @@ sequenceDiagram
 | offline_html | 一个选择器及 expectedSha256 | 删除当前对象及严格匹配的旧快照；保留登记，分开返回生命周期和清理完成度。 |
 | online_html | siteId 或 siteUrl，另带 localPath | 已登记离线站点恢复；不从旧快照读取内容。 |
 
-localPath 必须为绝对 .html/.htm 文件、非空有效 UTF-8、最多 20 MiB；用 HTML 标签作基本检测，不是完整解析器。只上传原始字节，相对资源仅告警。
+localPath 必须为绝对 .html/.htm 文件、非空有效 UTF-8、最多 20 MiB；用 HTML 标签作基本检测，不是完整解析器。只上传原始字节，相对资源仅告警。扫描游标单向推进，不收集全部引用；畸形或未闭合标签、CSS URL 不触发反复扫描，也不会阻止后续发布。它是尽力而为的提示，不是完整 HTML/CSS 解析器。
+
+未预期的非 `PublishError` 异常返回 `INTERNAL_ERROR`、`stage: INTERNAL` 和 `diagnostic`：`errorId` 用于关联本次结果与 stderr，`errorType` 和可选 `errorCode` 只来自固定白名单。stderr 仅包含工具名、通用错误码及同一诊断字段，不输出原始消息、堆栈、路径或参数。该规则针对新增的未预期异常诊断，不表示所有协议字段均经过同一过滤。
+
+公网验证始终以结果返回失败，不向调用方抛异常。已识别失败分为 `TIMEOUT`、`ABORTED`、`DNS_ERROR`、`TLS_ERROR`、`RESPONSE_TOO_LARGE`；其他网络错误保留 `PUBLIC_FETCH_FAILED`。只按固定错误类型/代码分类，检查至多四层 cause；不回传任意错误文本。上述扫描及诊断改动纳入 beta.6；beta.5 保留原行为。
+
+online_html 缺少 siteId/siteUrl 时，在取得本地登记锁或连接云端之前返回 `ONE_PAGE_SELECTOR_REQUIRED`；不按 localPath 的默认绑定代选目标。
 
 在线更新必须带 get_html 返回的实际旧哈希。newPage=true 不与 ID/URL 同传；原站点保留，验证成功才切换路径绑定。显式 siteId/siteUrl 决定更新或恢复目标，localPath 提供内容；如果路径默认绑定另一站点，保留该绑定及其 pending、站点记录和云端内容，只更新目标站点并记录 sourcePaths。无绑定的来源路径可登记到目标站点。离线站点不经 publish_html 隐式公开。
 

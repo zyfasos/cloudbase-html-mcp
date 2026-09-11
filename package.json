@@ -41,10 +41,12 @@
     "docs/clients.md",
     "docs/architecture.md",
     "docs/images/",
+    "docs/maintenance.md",
     "templates/",
     "README.md",
     "LICENSE",
     "PROJECT.md",
+    "CHANGELOG.md",
     "npm-shrinkwrap.json",
     ".env.example",
     "README.en.md"

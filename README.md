@@ -74,7 +74,7 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
 }
 ```
 
-不同 Agent 的配置文件外层结构和重载方式可能不同，不能只靠这份 JSON 判断兼容性。客户端适配示例与 [已有实测记录](docs/clients.md#acceptance-record--实测记录) 分开维护。配置文件和 HTML 都须在 MCP 执行环境中可访问，见 [运行位置](docs/getting-started.md#execution-location)。
+不同 Agent 的配置文件外层结构和重载方式可能不同，不能只靠这份 JSON 判断兼容性。客户端适配示例与实测证据分开维护，实测记录见 [CHANGELOG](CHANGELOG.md#桌面实测记录)。配置文件和 HTML 都须在 MCP 执行环境中可访问，见 [运行位置](docs/getting-started.md#execution-location)。
 
 保存并重载 MCP，然后让 Agent 调用 `hosting_status`、`list_html` 验证。确认目标环境后，即可说：
 
@@ -112,8 +112,8 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
 
 - [快速开始](docs/getting-started.md)：自行配置或领取文件、Agent 自主接入或手工配置、可选向导及排错。
 - [Agent 接入指南](docs/clients.md)：CLI、IDE、桌面客户端的接入格式与实际兼容性状态。
-- [架构说明](docs/architecture.md)：配置、契约、生命周期时序及验证。
-- [旧快照清理](docs/getting-started.md#existing-v02-installations) · [项目边界与验证状态](PROJECT.md)。
+- [架构说明](docs/architecture.md)：组件、契约、数据模型与生命周期时序。
+- [更新日志](CHANGELOG.md)：各版本变更与验证证据 · [源码开发、升级与旧快照清理](docs/maintenance.md) · [项目边界与验证状态](PROJECT.md)。
 
 ```sh
 npm ci --ignore-scripts

@@ -2,181 +2,57 @@
 
 ## 目标
 
-面向经常使用 Agent 生成并分享单页 HTML 的个人与小团队：指定本地产物即可发布、更新同一 URL、查看本地已知站点、下线删除云端内容，并从指定文件恢复原站点。
+面向经常使用 Agent 生成并分享单页 HTML 的个人与小团队：指定本地产物即可发布、更新同一 URL、按名称检索本地已知站点、下线删除云端内容，并从指定文件恢复原站点。
 
 <a id="positioning-and-related-tools"></a>
 ## 定位与相近工具
 
-项目起点是一个具体的交付场景：Agent 生成报告、演示或轻量交互页面后，使用者希望直接分享链接，修改后继续迭代同一地址。HTML 在这里承载版式、图表与交互，也保留可继续修改的源码；这是一项产品取舍，不把“HTML 已取代 Markdown”或“分享已成为所有人的刚需”当作未经验证的事实。
+项目起点是一个具体的交付场景：Agent 生成报告、演示或轻量交互页面后，使用者希望直接分享链接并持续迭代同一地址。HTML 在这里承载版式、图表与交互，也保留可继续修改的源码；这是一项产品取舍，不把“HTML 已取代 Markdown”或“分享是所有人的刚需”当作未经验证的事实。
 
-2026-09-10 再次核对公开项目说明：已经存在相近方案，不能声称 GitHub 上没有单 HTML 发布工具，也不能将它们统一描述为依赖 Cloudflare。下表只对照公开文档中的能力，未进行这些项目的安装、性能或服务质量评测。
+2026-09-10 核对公开项目说明：已存在相近方案（下表仅对照公开文档，未做安装、性能或服务质量评测；也不能将它们统一描述为依赖 Cloudflare）：
 
 | 项目 | 公开说明中的能力与交付形态 |
 | --- | --- |
-| [htmldrop](https://github.com/vin-spiegel/htmldrop) | 提供发布 API、远程 MCP 及自托管接入；支持 Cloudflare R2、AWS S3、MinIO 等 S3 兼容存储，也可使用本地文件系统。 |
-| [agent2web](https://github.com/raveli/agent2web) | 通过远程 MCP 发布单页 HTML 或多文件站点，运行于 Cloudflare Workers、D1、R2，并提供版本及管理界面。 |
-| [tinyhost](https://github.com/allenai/tinyhost) | 以命令行将单页放到 AWS S3 并提供限时链接；项目动机明确包括分享由 AI 生成的小页面。 |
-| [CloudBase 官方 CLI](https://docs.cloudbase.net/cli-v1/hosting) | 面向云开发和资源管理；静态托管命令本身支持指定单文件或目录上传。 |
-| [CloudBase 官方 MCP](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) | 覆盖静态托管、存储、数据库、云函数等更广的云开发能力。 |
+| [htmldrop](https://github.com/vin-spiegel/htmldrop) | 发布 API、远程 MCP 及自托管；支持 S3 兼容存储与本地文件系统。 |
+| [agent2web](https://github.com/raveli/agent2web) | 远程 MCP 发布单页/多文件站点，运行于 Cloudflare Workers/D1/R2，含版本与管理界面。 |
+| [tinyhost](https://github.com/allenai/tinyhost) | 命令行把单页放到 S3 并提供限时链接。 |
+| [CloudBase 官方 CLI](https://docs.cloudbase.net/cli-v1/hosting) | 面向云开发与资源管理；托管命令本身支持单文件上传。 |
+| [CloudBase 官方 MCP](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) | 覆盖静态托管、存储、数据库、云函数等更广能力，[支持按需启用插件](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/plugins)。 |
 
-本项目聚焦中文使用说明、支持本地 STDIO MCP 的 Agent 接入、自行配置或管理员整份交付配置，以及用户自己的 CloudBase 环境。它将“指定本地单 HTML → 发布 → 同链接更新 → 下线/恢复”收敛为六工具，不需要部署额外的远程服务或业务数据库。这里的轻量指职责和接入范围集中，不是对安装体积、性能或所有场景易用性的比较结论。
+本项目的差异不在“能上传单文件”（官方 CLI 也能），而在为 Agent 组织好的站点操作契约：本地登记保持文件与站点关联、旧哈希防误覆盖、发布/查询/下线/恢复协调，配合中文说明、本地 STDIO 接入、管理员整份交付配置与用户自己的 CloudBase 环境，无需部署远程服务或业务数据库。相近能力已能满足需求时不必更换（2026-09-11 核对：[Qoder IDE](https://docs.qoder.com/release-notes/desktop) 已有 Vercel 部署流程；[Claude Code Artifacts](https://claude.com/blog/artifacts-in-claude-code) 支持组织内分享与同链接更新，限组织内认证访问）。
 
-官方 CLI 可以完成底层文件操作。本项目在这一具体场景中提供面向 Agent 的站点操作契约：通过本地登记保持文件与站点关联、检查旧哈希避免误覆盖，并协调发布、查询、下线与恢复。差异在于为单 HTML 分享组织好的使用流程；不宣称官方 CLI 无法上传单文件，也不将“重”泛化为性能或质量问题。
+口径边界：这里的“轻量”指职责与流程集中（六工具、单 HTML、免工程/构建），**不**表示安装体积、启动、内存或 Token 消耗更优——与官方 MCP 精简配置的公平对照（固定版本/机器/网络/任务）尚未进行。定位按“已有单 HTML、经常分享并持续管理”定义，不按 Agent 品牌定义；尚无分群留存或使用频率数据。管理员整份交付配置是接入便利而非独有能力（官方 [MCP 下发接入](https://docs.cloudbase.net/solutions/cloudbase-platform-edition/bind-agent-to-cloudbase)、[CLI API Key 登录](https://docs.cloudbase.net/en/cli-v1/install) 亦支持）；多人共用环境不自动汇总站点、无成员级隔离，不是团队协作平台。
 
-### 用户与适配策略
+## 当前实现（v0.5 beta）
 
-定位按“已有单 HTML、经常分享并持续管理”定义，不按 Agent 品牌定义。CLI、IDE、桌面 Agent 是接入渠道，兼容性实测也不是用户使用频率的证明。优先验证技术创作者、经常交付报告/原型/小工具的人，以及为同事准备云环境的技术负责人；尚无分群留存或使用频率数据，不能宣称 coding 群体已经是最高频用户。
-
-不以“coding Agent 都没有部署能力”为前提。2026-09-11 核对：[Qoder IDE](https://docs.qoder.com/release-notes/desktop) 已有 Vercel 部署流程；[Claude Code Artifacts](https://claude.com/blog/artifacts-in-claude-code) 已支持组织内分享与同链接更新，其公开说明限定组织内认证访问。已有发布方式完全满足需求时不必更换；本项目提供的是指定 HTML 发布到自己 CloudBase 的统一流程。
-
-### 轻量的口径与待验证项
-
-已实现的“轻量”是职责和使用流程：六工具、单 HTML、不要求每份产物建立工程或配置构建、不新增远程 MCP 服务与业务数据库。它不等于安装体积更小、启动更快、内存更低或更省 Token。
-
-官方 MCP [支持按需启用插件](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/plugins)，因此未来对照必须包含其精简到环境/静态托管的配置，不能仅比较默认全功能集合。公平对照尚未进行；需要固定版本、机器、网络和相同任务，分别测完整依赖安装量、冷暖启动、空闲内存和操作步骤。单包体积、直接依赖数或工具数量都不能单独证明总成本更低。
-
-### 配置交付的价值与边界
-
-管理员可为同事准备同一环境的完整配置文件，收件人无需拆分云参数或登录控制台。环境 API Key 由 CloudBase 提供，本项目不签发 Key、不建立成员账户。官方 [MCP 下发接入](https://docs.cloudbase.net/solutions/cloudbase-platform-edition/bind-agent-to-cloudbase) 和 [CLI API Key 登录](https://docs.cloudbase.net/en/cli-v1/install) 也支持此类凭据；不宣称管理员授权是本项目独有能力。
-
-本项目把配置文件、固定读取位置、无 Key 的客户端配置和单 HTML 管理流程组织成可交付的一套用法。多人共用环境仍受云资源与凭据限制，且各机器站点目录独立，不自动汇总名称、搜索或全员清单；不提供成员级站点隔离，也不把它描述成团队协作平台。
-
-## v0.4 beta
-
-- 固定用户目录 credentials.env 主线、serve 默认/--config/--env 三路入口；setup 为可选辅助，新入口配置错误仍可列工具。
-- npm bin、发布白名单、shrinkwrap 和双系统模板已加入；当前版本及分发状态见下方发布说明。
-- Node.js >=22、本地 STDIO MCP；六工具：hosting_status、publish_html、get_html、list_html、offline_html、online_html。
-- 环境管理端 API Key 换临时凭据；域名发现及严格 URL 归属核验。
-- 独立本地 `npm run setup` 向导：环境/地域预填或 JSON 导入、隐藏输入 Key、只读连接检查、私密配置保存与 JSON/TOML 接入片段；支持管理员发 Key 的无账号接入。生成的启动入口固定读取指定文件，现有环境变量入口保持兼容。
-- 正常发布只写当前对象，不新增 COS 项目快照；本地也不备份 HTML。
-- v2 仓库外站点目录按环境/地域隔离，使用环境锁、原子替换及 v1 兼容迁移。
-- offline 删除当前 HTML 和严格匹配的旧快照，保留本地记录；online 从本次指定文件恢复原 ID。
-- 删除前核对 Bucket 原生版本控制；独立旧快照清理脚本默认只读，执行需要显式清单。
-- 生命周期、清理进度、登记进度和公网验证分别表达；失败不冒充成功。
-
-v0.3 历史证据：2026-09-09 已在用户授权的一个环境中，使用合成 HTML 通过真实连接、固定 URL 更新、冲突保护、下线删除、公网 404、重启目录读取和原 URL 恢复；限定站点清单只有当前 HTML，没有项目快照。程序请求观察到 attachment，但用户随后提供的 Chrome 截图已确认原 URL 正常渲染恢复后的 v2；此前自动化导航失败不能直接判为用户浏览器无法展示。GitHub 全新安装、已有快照删除及故障恢复的真实验证不在本次已通过范围内。
+- Node.js ≥22、本地 STDIO MCP、npm 分发（bin/白名单/shrinkwrap/双系统模板）；六工具：hosting_status、publish_html、get_html、list_html、offline_html、online_html。
+- 配置主线：用户目录 `credentials.env`，serve 默认/`--config`/`--env` 三路互斥；配置错误仍可发现工具；可选 setup 向导；旧入口保持兼容。
+- 发布只写当前对象（`sites/<siteId>/index.html`），分享地址为 `/sites/<siteId>/`；不新增云快照、不备份 HTML。
+- 结构化资源诊断、可选站点名称、HTML 标题提取、计算 label 与本地关键词搜索；元数据仅存当前环境 v2 目录。
+- v2 目录按环境隔离（环境锁、原子替换、v1 迁移）；offline 删当前对象与严格匹配旧快照、online 按指定文件恢复原 ID；删除前核对 Bucket 原生版本控制；独立清理脚本默认只读。
+- 生命周期、清理进度、登记进度、公网验证与错误诊断分别表达；失败不冒充成功。
 
 ## 边界与后续机会
 
-- 不提供完整版本管理、回滚、云端备份或保留 COS 内容的禁用/启用。
-- 不引入服务端数据库、跨设备同步、全云端站点枚举或跨机器事务。
+- 不提供完整版本管理、回滚、云端备份或保留 COS 内容的禁用/启用；不引入服务端数据库、跨设备同步、全云端站点枚举或跨机器事务。
 - 外部域名、复杂路径重写、不明确路由不通过 URL 方式管理；默认域名预览限制仍存在。
 - 删除不清除外部缓存，不更改 Bucket 版本控制、生命周期、域名或权限。
 - 本地目录丢失后，离线站点不能自动认领恢复；未迁入目录的在线站点可验证后明确更新/下线。
-- 不扩展到多文件构建、全栈部署、实时协作或全套云资源管理。
-
-浏览器/设备码登录仅作为后续可选接入机会，当前保持 API Key 主流程，无自建认证服务。
-
-以后如出现明确的误发布恢复、多设备管理或保留内容禁用需求，再单独评估；当前版本不提前承诺这些能力。
+- 不扩展到多文件构建、全栈部署、实时协作或全套云资源管理。浏览器/设备码登录仅作为后续可选接入机会；误发布恢复、多设备管理等出现明确需求再评估。
 
 ## 开源与发布
 
 <!-- release:version -->
-源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。当前预发布版为 `cloudbase-html-mcp@0.5.0-beta.1`，已发布到 npm 的 beta 标签，接入模板固定具体版本；各标签指向及验收结论以下方版本记录为准。
+源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。当前预发布版为 `cloudbase-html-mcp@0.5.0-beta.1`（npm `beta` 标签），接入模板固定具体版本；各标签指向、发布与验收结论见 [CHANGELOG](CHANGELOG.md)。
 <!-- /release:version -->
 
-业务 HTML、私人环境信息、凭据、本地登记和 docs/implementation/ 不进入 Git（包括历史）；实施档案只在本地维护。
-
-## v0.4 验证与发布安排
-
-beta.2 已完成 CI 修复：独立准备 npm 缓存后执行离线安装测试，测试预加载使用 file: URL 并输出脱敏诊断；Windows 配置路径提前拒绝 `..`，目录创建失败与锁竞争分别报告。这些修复及文档相对链接修正纳入 0.4.0-beta.2；旧版 0.4.0-beta.1 的包内容保持不变。
-
-<a id="ci-首次运行记录"></a>
-### CI 复验结果
-
-[257154a 的四组复验](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34337881336) 均通过依赖安装、缓存准备、check 和测试：
-
-| 系统 | Node | 通过 | 失败 | 平台限定跳过 |
-| --- | --- | --- | --- | --- |
-| macOS | 22.23.2 | 124 | 0 | 0 |
-| macOS | 24.20.0 | 124 | 0 | 0 |
-| Windows | 22.23.2 | 120 | 0 | 4 |
-| Windows | 24.20.0 | 120 | 0 | 4 |
-
-Windows 的 4 项跳过沿用原有平台限定，涉及 POSIX 权限、所有者和路径别名断言；本轮没有新增跳过来掩盖失败。[首次运行](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34334279722) 暴露的缓存、路径、启动和错误分类问题已通过本轮复验。安装包测试使用真实 STDIO 子进程和文件系统，云端为替身，涵盖升级、重装及发布→更新→下线→重启→列表→恢复。
-
-本地 macOS Node 22.20.0、24.20.0 也各通过 check 和 124 项测试。此前已发布 beta.1 的公共 npm 冷启动验证覆盖全新缓存下载、版本查询、六工具发现及缺失配置诊断。
-
-### 桌面接入与页面操作验收
-
-2026-09-09，用户按 beta.2 指南确认 WorkBuddy 自主接入、千问办公连接器 JSON 导入均成功。两份客户端验收结果截图显示六工具可用，hosting_status 与 list_html 成功，默认配置文件读取正常、管理已启用，两边返回同一个本地已知站点。详见 [客户端实测记录](docs/clients.md#acceptance-record--实测记录)。
-
-同日后续截图显示：WorkBuddy 5.5.4 发布成功，HTTP 200、哈希一致，内置预览可见；千问办公先通过已有登记和 get_html 避免重复发布，再按用户要求另建不同 siteId 成功；WorkBuddy 查询旧哈希后下线原站点，云端对象为 absent、登记保留、清理完成且删除快照数为 0。
-
-证据为用户确认、客户端结果与操作截图，未提供完整原始调用日志；WorkBuddy 5.5.4 在新截图中可见，其他精确运行版本未补齐。发布和下线已有桌面证据；后续恢复 A 被共享文件绑定冲突阻断，WorkBuddy 手改本地登记后恢复成功，不能记作完整 MCP 恢复流程通过。同 URL 内容更新、客户端重启后查询及无手改登记的原 URL 恢复仍待验收。QoderWork、豆包工作与 Windows 桌面接入也仍待完成；随后经明确授权发布 0.4.0。
-
-### beta.3 的绑定修复与目录分享地址
-
-beta.3 将显式 siteId/siteUrl 与 localPath 默认绑定分开：文件可用于更新或恢复明确指定的 A，保持 B 的默认绑定、内容和状态。返回 pathBinding 辅助判断；newPage 和对应 pending 新建的切换语义保持，下线不释放绑定，也不要求手改目录。目录 v2 格式、六工具和云端对象路径不变。默认分享链接改为 `/sites/<siteId>/`，公网验证请求目录地址；保留旧 `index.html` 链接作为管理目标，旧登记在只读返回时显示为目录形式。复审另修复生命周期通用提示覆盖前置错误的问题：缺失文件、登记锁、配置和凭据错误分别引导修正，保留不确定写入/删除后的核验与恢复建议。
-
-本地 macOS Node 22.20.0、24.20.0 各通过 `npm run check` 和 144 项离线测试（绑定修复新增 10 项、目录地址新增 8 项、恢复提示复审新增 2 项，0 失败/跳过），包含真实 STDIO 子进程、进程退出恢复、实际 tarball 安装和重装。云端均为替身，未改真实登记或站点。这些修复纳入 0.4.0-beta.3，未回写 beta.2。beta.3 的 CI 和公共 npm 冷启动结果见下表，与上方 beta.2 的桌面证据分别记录。新版仍需在桌面客户端复验目录访问、原站点恢复和更新。
-
-### beta.3 发布与 CI 结果
-
-2026-09-09，`cloudbase-html-mcp@0.4.0-beta.3` 已发布，发布时 `beta`、`latest` 均指向该版本。公共 npm 全新缓存安装通过版本查询、真实 STDIO 六工具发现及缺失默认配置诊断；registry 的完整性值与发布 tarball 一致。此验证未使用真实凭据或访问 CloudBase。
-
-[发布源码 733d27d 的四组 CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34368580426) 全部通过依赖安装、缓存准备、check 和测试：
-
-| 系统 | Node | 通过 | 失败 | 平台限定跳过 |
-| --- | --- | --- | --- | --- |
-| macOS | 22.23.2 | 144 | 0 | 0 |
-| macOS | 24.20.0 | 144 | 0 | 0 |
-| Windows | 22.23.2 | 140 | 0 | 4 |
-| Windows | 24.19.0 | 140 | 0 | 4 |
-
-Windows 的 4 项跳过沿用原有平台限定。CI 使用云端替身，不代替新版桌面和真实云端验收。npm 包内文档为发布时快照，后续验证状态以本 GitHub 文档为准。
-
-### beta.4 配置兼容修复
-
-`0.4.0-beta.4` 修复 UTF-8 BOM 紧接首个配置字段时被误判为未知字段的问题；默认文件、显式文件和旧读取入口统一处理 BOM，保留文件原文与并发修改检测。CLI 参数错误返回 `INVALID_LAUNCH_ARGUMENTS` 和合法用法，不再将未知参数或相对路径误报为配置来源冲突。
-
-本地 macOS Node 22.20.0、24.20.0 各通过 `npm run check` 和 147 项离线测试（0失败、0跳过），包括 BOM/CRLF 组合、原始文件变更检测、真实 STDIO 子进程与安装包生命周期回归。测试使用云端替身，未操作真实 CloudBase。
-
-2026-09-10，`cloudbase-html-mcp@0.4.0-beta.4` 已发布，发布时 `beta`、`latest` 均指向该版本。公共 npm 全新缓存冷启动通过版本查询、六工具发现、缺失配置诊断及 BOM 配置解析；registry 完整性与发布 tarball 一致。
-
-[发布源码 60ca136 的四组 CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34441466664) 全部通过：
-
-| 系统 | Node.js | 通过 | 跳过 | 失败 |
-|---|---|---:|---:|---:|
-| macOS | 22.23.2 | 147 | 0 | 0 |
-| macOS | 24.20.0 | 147 | 0 | 0 |
-| Windows | 22.23.2 | 143 | 4 | 0 |
-| Windows | 24.20.0 | 143 | 4 | 0 |
-
-Windows 的 4 项跳过为原有平台限定测试。CI 和公共包验证不能代替桌面客户端及真实云端验收；beta.4 的桌面实测仍待完成。npm 包内文档是发布源码快照，GitHub 文档另补本次发布与 CI 结果。
-
-## beta.5：20 MiB 单 HTML
-
-单 HTML 上限由 5 MiB 提高到 20 MiB（20,971,520 字节），本地读取、发布/恢复及公网验证共用该限制。超出上限仍在上传前拒绝。此变更纳入 `0.4.0-beta.5`，旧版 beta.4 仍为 5 MiB。Node22 本地 check 与149项离线测试通过；[功能提交0734947的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34455806494)通过。2026-09-10，beta.5 已发布，发布时 `beta` 和 `latest` 均指向该版本。全新 npm 缓存安装通过版本查询、六工具发现、BOM 配置诊断及 20 MiB 文件读取/内容校验、多 1 字节拒绝；registry 完整性与发布包一致。内容校验使用合成响应，未访问真实 CloudBase。
-
-[发布源码857199f的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34456610781)全部通过：macOS Node22/24 各149通过，Windows Node22/24 各145通过及4项原有平台跳过，均零失败。20MiB真实云端及桌面验收仍待完成。npm 包内文档为发布快照，GitHub 文档另补发布结果。
-
-## beta.6：扫描性能与错误诊断
-
-- 相对资源告警改为单向扫描，覆盖畸形 HTML 标签和未闭合 CSS URL，避免二次方扫描耗时；仍只是提示，不新增 HTML 校验或安全过滤。
-- 未预期异常增加安全诊断 ID/类型/已识别代码及 stderr 关联日志，不输出原始异常文本；公网验证细分超时、DNS、TLS、中止与响应超限，其他错误保留原分类。
-- online_html 缺少 siteId/siteUrl 时先返回明确的输入错误，不受路径绑定状态影响，不取得登记锁或连接云端；幂等标注与正常生命周期不变。
-
-2026-09-10，`0.4.0-beta.6` 已发布。macOS Node22.20.0 与24.20.0 本地各通过 check 和155项离线测试，覆盖实际安装包与真实 STDIO 子进程（云端使用测试替身）。[发布源码92a6391的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34461990556)全部通过：macOS Node22/24 各155通过，Windows Node22/24 各151通过、4项原有平台限定测试跳过，均零失败。
-
-公共 npm 全新缓存安装通过版本查询、六工具发现、默认文件/BOM诊断、20MiB边界、畸形HTML/CSS扫描和错误分类检查；registry完整性与本地发布包一致。扫描合成约20MiB样本在本机分别耗时513ms和407ms，仅为本机观测。未访问真实CloudBase，新版桌面与云端验收仍待完成。npm包内文档是发布时的源码快照，GitHub文档补记发布结果。
-
 <a id="v05-release"></a>
-## v0.5 beta：资源诊断与站点检索
+## 验证状态
 
-本地实现随publish/online返回结构化资源诊断，保留原warnings且不阻断发布；只上传原HTML。新增可选displayName、head/title提取、计算label及list_html关键词搜索，元数据仅保存在当前环境v2目录；候选随操作保留、存储验证后提升。安装流程、六工具和20MiB上限不变。范围与兼容限制见[快速开始](docs/getting-started.md#resource-diagnostics)。
+各版本的变更、CI、公共 npm 冷启动与桌面实测证据统一记录在 [CHANGELOG.md](CHANGELOG.md)；发布流程见 [docs/releasing.md](docs/releasing.md)。当前未完成项：v0.5 新特性（资源诊断、名称与搜索）的真实桌面/云端实测；同 URL 内容更新、客户端重启后查询与不依赖手改登记的原 URL 恢复的桌面证据；Windows 桌面实机验收（按用户决定暂缓）；与官方 MCP 精简配置的公平对照。CI 与公共包验证不能替代桌面与真实云端验收。
 
-2026-09-11 已将源码提交 `3a77c9541a13ac7285aec147c9540050e9f169fc` 推送 GitHub，并在[对应提交四组 CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34555929343)成功后重新打包、通过发布前检查，再发布 `0.5.0-beta.1`。`beta` 指向该版本，`latest` 保持 `0.4.0-beta.6`；0.4.0和0.5.0正式版均未发布。
-
-| 系统 | Node | 通过 | 失败 | 平台限定跳过 |
-| --- | --- | --- | --- | --- |
-| macOS | 22 / 24（各） | 187 | 0 | 0 |
-| Windows | 22 / 24（各） | 183 | 0 | 4 |
-
-绑定该提交的同一tgz通过离线check、全量测试和仓库外安装。npm发布后使用全新缓存安装固定版本，包完整性及逐文件内容与已验证tgz一致，版本查询、真实STDIO六工具发现和缺失配置诊断均通过。此公共包验证未携带CloudBase凭据、未创建或修改云资源。包内文档保留发布前源码快照，GitHub文档在此补记发布结果，不为文案更新重复发布同一npm版本。
-
-离线生命周期、资源诊断、名称和搜索测试使用云端替身；v0.5真实桌面/云端新特性实测待进行，不沿用v0.4的结论。Windows桌面实机按用户决定继续暂缓；真实云端实测须另行指定文件和环境授权。
+业务 HTML、私人环境信息、凭据、本地登记和 `docs/implementation/` 不进入 Git（包括历史）；实施档案只在本地维护。
 
 ## 文档语言
 
-面向国内个人用户，以中文 README、快速开始、客户端指南和架构说明为主。README.en.md 仅保留简短英文介绍及中文指南入口，不维护逐段双语副本。命令、参数和 MCP 协议标识保持原样。
+面向国内个人用户，以中文 README、快速开始、客户端指南、架构说明与更新日志为主；README.en.md 仅保留简短英文介绍及中文指南入口，不维护逐段双语副本。命令、参数和 MCP 协议标识保持原样。

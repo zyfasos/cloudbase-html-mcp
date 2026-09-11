@@ -124,7 +124,7 @@ async function gateFixture(t) {
     if(program==='gh') return JSON.stringify(state.ci);
     throw new Error('unexpected command');
   };
-  return {directory,output,path,manifest,state,run,git};
+  return {directory,output,path,manifest,state,run,git,npmRun:()=>({status:0,stdout:'"release-user"'})};
 }
 
 test('release gate accepts clean committed pushed source and exact successful CI; publishes only the validated tarball', async (t) => {
@@ -171,4 +171,47 @@ test('unpushed source, missing or pending/failed/wrong CI and skipped matrix job
   f.state.jobs.total_count=5;await check();f.state.jobs=structuredClone(jobs);
   await assert.rejects(publishRelease(f.path,'beta',{...f,run:(p,a,c,i)=>p==='gh'&&a[0]==='run'?'[]':f.run(p,a,c,i),publish:()=>{calls++;}}));
   assert.equal(calls,0);
+});
+
+
+test('npm auth reuses a valid session and only refreshes explicit missing/expired login', async () => {
+  const { ensureNpmLogin } = await import('../scripts/release.mjs');
+  const valid = { status: 0, stdout: '"release-user"' };
+  for (const code of [null, 'E401', 'ENEEDAUTH']) {
+    const calls = [];
+    const results = code ? [{status:1,stdout:JSON.stringify({error:{code}})}, {status:0}, valid] : [valid];
+    const result = ensureNpmLogin((args, interactive) => { calls.push({args,interactive}); return results.shift(); });
+    assert.equal(result.refreshed, Boolean(code));
+    assert.deepEqual(calls.map(c=>c.args[0]), code ? ['whoami','login','whoami'] : ['whoami']);
+    if (code) { assert.equal(calls[1].interactive,true); assert.ok(calls[1].args.includes('--auth-type=web')); }
+  }
+});
+
+test('npm auth distinguishes network failures, malformed output and failed login without leaking CLI output', async () => {
+  const { ensureNpmLogin } = await import('../scripts/release.mjs');
+  for (const result of [{status:null,error:new Error('secret')}, {status:null,stdout:'{"error":{"code":"E401"}}'}, {status:1,error:new Error('secret'),stdout:'{"error":{"code":"E401"}}'}, {status:1,stdout:'{"error":{"code":"E503"}}'}, {status:0,stdout:'invalid secret'}, {status:1,stderr:'npm error code E401 secret'}]) {
+    let calls=0;
+    assert.throws(()=>ensureNpmLogin(()=>{calls++;return result;}), e=>e.message.includes('RELEASE_AUTH_CHECK_FAILED')&&!e.message.includes('secret'));
+    assert.equal(calls,1);
+  }
+  for (const loginStatus of [1,null]) {
+    let calls=0;
+    assert.throws(()=>ensureNpmLogin(()=>++calls===1?{status:1,stdout:'{"error":{"code":"E401"}}'}:{status:loginStatus}),/RELEASE_LOGIN_FAILED/);
+    assert.equal(calls,2);
+  }
+});
+
+test('publication stops on auth failure and rechecks source after valid-session probing or login', async (t) => {
+  const { publishRelease } = await import('../scripts/release.mjs'); const f=await gateFixture(t);let published=0;
+  await assert.rejects(publishRelease(f.path,'beta',{...f,npmRun:()=>({status:1,stdout:'{"error":{"code":"E503"}}'}),publish:()=>published++}),/RELEASE_AUTH_CHECK_FAILED/);
+  await assert.rejects(publishRelease(f.path,'beta',{...f,npmRun:()=>{
+    f.state.remote='0'.repeat(40); return {status:0,stdout:'"release-user"'};
+  },publish:()=>published++}),/RELEASE_NOT_PUSHED/);
+  f.state.remote=f.manifest.sourceCommit;
+  let probes=0;
+  await assert.rejects(publishRelease(f.path,'beta',{...f,npmRun:(args)=>{
+    if(args[0]==='login'){f.state.remote='0'.repeat(40);return {status:0};}
+    return ++probes===1?{status:1,stdout:'{"error":{"code":"E401"}}'}:{status:0,stdout:'"release-user"'};
+  },publish:()=>published++}),/RELEASE_NOT_PUSHED/);
+  assert.equal(published,0);
 });

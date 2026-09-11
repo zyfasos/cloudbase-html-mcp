@@ -50,11 +50,11 @@ npm run release:gate -- artifacts/release-实际后缀/release.json --network
 npm run release:publish -- artifacts/release-实际后缀/release.json --tag beta --confirm-publish
 ```
 
-入口会重新执行完整闸门，随后才调用npm发布已核验的同一tgz，保留终端交互供npm本人安全验证。`--confirm-publish` 表达执行意图，不替代用户授权。没有force/skip-ci或旧检查凭据绕过入口。
+入口会重新执行完整闸门，再以只读 `npm whoami --json` 检查官方registry登录状态。有效会话直接复用；身份检查结束后仍重新核对完整闸门，防止网络等待期间源码或远端变化。只有明确的未登录/过期（ENEEDAUTH/E401）才自动执行网页登录，成功后再次检查身份和完整闸门，再调用npm发布已核验的同一tgz。网络、服务或无法识别的CLI错误直接停止，不误触发登录。保留终端交互供npm本人安全验证。`--confirm-publish` 表达执行意图，不替代用户授权。没有force/skip-ci或旧检查凭据绕过入口。
 
 不得以手工 `npm publish` 或 `--ignore-scripts` 绕过本项目流程。脚本约束的是受支持的发布入口，不能限制账号持有者在仓库外手动操作npm；AGENTS约定与脚本检查共同执行。
 
-npm登录/安全验证在上述前置条件满足后处理；登录不等于发布。遇到processing、超时或不确定结果，先查询registry，不能盲目重发。同一npm版本不可覆盖。需要更新latest时另按已有标签授权执行，未授权不自动移动其他标签。
+npm登录/安全验证在上述前置条件满足后处理；不要预先反复运行login或退出仍有效的会话。一次release:publish可接续登录及发布，但登录不等于发布，npm仍可能要求独立的发布验证，脚本不绕过2FA。取消登录则停止且不发布；修复后重跑同一命令会重新核验全部条件。遇到processing、超时或不确定结果，先查询registry，不能盲目重发。同一npm版本不可覆盖。需要更新latest时另按已有标签授权执行，未授权不自动移动其他标签。
 
 ## 5. 公共包验证与收口
 

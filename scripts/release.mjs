@@ -196,15 +196,40 @@ export async function releaseGate(manifestPath, { directory = root, run = comman
   requireThat(cleanSource(directory, run) === commit && remoteHead() === commit, 'RELEASE_CHANGED: 核验期间提交或远端发生变化');
   return { passed: true, sourceCommit: commit, version: manifest.version, tarball, integrity: manifest.integrity, ciUrl: ci.html_url, ciAttempt: ci.run_attempt };
 }
+function releaseNpm(args, interactive = false) {
+  requireThat(process.env.npm_execpath, '请使用npm run release:publish');
+  const env = { ...process.env }; delete env.npm_config_allow_scripts;
+  return spawnSync(process.execPath, [process.env.npm_execpath, ...args, `--registry=${registry}`], {
+    cwd: root, env, ...(interactive ? { stdio: 'inherit' } : { encoding: 'utf8', maxBuffer: 1024 * 1024 }),
+    timeout: interactive ? 1200000 : 30000,
+  });
+}
+export function ensureNpmLogin(run = releaseNpm) {
+  const probe = () => {
+    const result = run(['whoami', '--json', '--fetch-retries=0']);
+    let value;
+    try { value = JSON.parse(result.stdout ?? ''); } catch { /* Invalid output is not proof of an expired login. */ }
+    if (result.status === 0 && typeof value === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(value)) return true;
+    const code = value?.error?.code;
+    if (Number.isInteger(result.status) && result.status !== 0 && !result.error && ['E401', 'ENEEDAUTH'].includes(code)) return false;
+    throw new Error('RELEASE_AUTH_CHECK_FAILED: 无法确认npm登录状态（网络、服务或CLI异常）；未发起登录或发布，请排查后重试。');
+  };
+  if (probe()) return { refreshed: false };
+  console.error('npm登录未建立或已失效，先完成网页登录；登录后将重新检查发布条件。发布时npm仍可能要求独立安全验证。');
+  const login = run(['login', '--auth-type=web'], true);
+  requireThat(login.status === 0, 'RELEASE_LOGIN_FAILED: npm登录未完成，未发布；完成登录后重新运行release:publish。');
+  requireThat(probe(), 'RELEASE_LOGIN_FAILED: 登录后身份仍无效，未发布；请检查npm账号配置。');
+  return { refreshed: true };
+}
 export async function publishRelease(manifestPath, tag, options = {}) {
   requireThat(/^[a-z][a-z0-9-]*$/.test(tag), '无效npm tag');
+  await releaseGate(manifestPath, options);
+  ensureNpmLogin(options.npmRun);
+  // Even a valid-session network probe can outlive local or remote changes.
   const gate = await releaseGate(manifestPath, options);
   // Only this supported entry performs publishing. No receipt/token can bypass a fresh gate.
   const publish = options.publish ?? ((verified) => {
-    requireThat(process.env.npm_execpath, '请使用npm run release:publish');
-    const env = { ...process.env }; delete env.npm_config_allow_scripts;
-    const r = spawnSync(process.execPath, [process.env.npm_execpath, 'publish', verified.tarball, '--tag', tag,
-      '--access', 'public', '--ignore-scripts', `--registry=${registry}`], { cwd: root, env, stdio: 'inherit', timeout: 1200000 });
+    const r = releaseNpm(['publish', verified.tarball, '--tag', tag, '--access', 'public', '--ignore-scripts'], true);
     requireThat(r.status === 0, 'npm发布未成功确认；先查询registry状态，不要盲目重试');
   });
   await publish(gate);

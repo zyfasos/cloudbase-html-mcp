@@ -7,7 +7,7 @@
 CloudBase HTML MCP 面向国内桌面 Agent 用户，将本地报告、演示或交互页面发布到自己的 CloudBase 环境。修改后更新原链接，需要时下线，再从指定的本地文件恢复。
 
 <!-- release:version -->
-本地 STDIO MCP · 六工具 · MIT · 当前候选版本 `0.5.0-beta.1`。[验证状态](PROJECT.md#v04-验证与发布安排)
+本地 STDIO MCP · 六工具 · MIT · 当前预发布版本 `0.5.0-beta.1`。[验证状态](PROJECT.md#v05-release)
 <!-- /release:version -->
 
 <a id="为什么做这个工具"></a>
@@ -35,7 +35,7 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
 
 `hosting_status` 检查接入，`get_html` 查询单页，`list_html` 查看本地已知站点。域名映射不变时，更新和恢复保持 URL 不变；公网验证与存储成功分别报告，默认域名可能有预览限制，见 [适用范围](#适用范围)。
 
-本地候选版新增：发布时可设置站点名称、自动提取 HTML 标题；按名称、标题或来源文件名搜索。资源诊断列出静态引用及本地检查结果，仍只上传原 HTML，不自动内嵌资源。详见 [资源诊断与站点检索](docs/getting-started.md#resource-diagnostics)。**候选版尚未发布到 npm**；当前公开包仍为上一版，试用本候选请使用源码或维护者提供的本地包。
+本版新增：发布时可设置站点名称、自动提取 HTML 标题；按名称、标题或来源文件名搜索。资源诊断列出静态引用及本地检查结果，仍只上传原 HTML，不自动内嵌资源。详见 [资源诊断与站点检索](docs/getting-started.md#resource-diagnostics)。**已发布到 npm 的 beta 标签**；请使用下方固定版本配置。
 
 ## 快速接入
 

@@ -13,6 +13,8 @@
 - 行为变更后运行 `npm run check` 和 `npm test`。依赖变更或测试缓存清除后，先运行 `npm run test:prepare` 准备隔离的 npm 包测试缓存；该显式准备步骤可以访问 npm。测试默认离线；真实云端测试必须获得覆盖指定文件和目标环境的授权。
 - 如实报告实现内容、实际执行的检查及未验证项。区分离线测试、使用云端替身的真实 STDIO 测试，以及真实云端／浏览器验证；缺少必要验证时不得宣称完成。
 - 文档与已实现行为保持一致，未来工作写入 `PROJECT.md`。`README.md` 及完整用户指南、架构说明以中文为主；`README.en.md` 仅保留简短英文概览及中文文档链接，不维护完整平行翻译。保持接口、配置、行为、验证和语言链接一致，保留协议标识和命令名称。
+- 文档各归其位：`README.md`/`README.en.md` 是首页与英文概览；`docs/getting-started.md` 与 `docs/clients.md` 是用户接入和使用；`docs/architecture.md` 只写组件、契约、数据模型与时序；`docs/maintenance.md` 与 `docs/releasing.md` 是源码运维与发布 runbook；`CHANGELOG.md` 是各版本变更、CI/公共包证据与桌面实测记录的唯一归宿；`PROJECT.md` 只保留定位、边界和当前待验证项。每个事实只写在一处，其余文档用链接引用；指南只描述当前行为，版本历史与验证证据不写进指南。
+- 带版本号的示例命令（`package@version`、`.tgz` 名称）只出现在 `release:version` 标记覆盖的五个文件中；其余文档保持与版本无关，避免发版脚本无法同步而腐化。文档链接、锚点与版本标记由 `npm run check` 内的 `docs:check` 校验。
 - 仓库文档和文件之间使用相对链接，便于托管平台渲染 Markdown。复制给 Agent 或由工具返回的独立 URL 应指向 GitHub 文档页面，不使用 CDN 原始 Markdown 作为阅读入口。
 - 未获得用户对相应操作的授权，不得提交、推送、发布 npm 包或创建公开云资源。已有授权在其范围内持续有效；范围未变时不重复请求授权。
 - 版本准备和发布按 [发布维护指南](docs/releasing.md) 执行：使用 `release:version` 同步当前版本及命令，终审后先提交、推送并等待该提交四组CI成功，再用 `release:pack` 生成绑定提交的tgz。发布只用 `release:publish`，它重新核对干净main、远端提交、对应CI和同一tgz；不得手工npm publish绕过。发布后用 `release:verify` 核对公共包和目标标签。不得全仓库替换历史版本，不把旧 CI/桌面验收结论套到新版本；发布验证过的同一 tgz，包内内容变化后重新核验。前置提交/推送授权缺失时先补齐，不先进行npm发布；无跳过CI的beta例外。

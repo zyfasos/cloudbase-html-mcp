@@ -1,20 +1,91 @@
-# 桌面客户端接入
+# Agent 接入指南
 
 <!-- release:version -->
-本指南说明如何手动添加本地 STDIO MCP。当前预发布版本为 **0.5.0-beta.1**。发布及运行时验证见 [项目验证状态](../PROJECT.md#v05-release)；下方客户端证据保留实际受测版本，不随接入命令升级。
+本指南按 CLI、IDE、桌面客户端的实际格式添加本地 STDIO MCP，不限定 Agent 品牌。当前预发布版本为 **0.5.0-beta.1**。发布及运行时验证见 [项目验证状态](../PROJECT.md#v05-release)；下方客户端证据保留实际受测版本，不随接入命令升级。
 <!-- /release:version -->
 
 **此版本已发布到 npm 的 beta 标签**，可直接使用下面的固定版本配置；也可使用 [源码或本地包](getting-started.md#install-from-source-or-a-local-package)。同机共享目录的客户端升级到同一新版；旧版写入可能丢失新增站点名称和标题。现有桌面证据不等于本版本验收通过。
 
+<a id="choose-integration"></a>
+## 选择接入方式
+
+先完成 [配置文件准备](getting-started.md#2-receive-or-prepare-the-configuration-file)，并确认 [MCP 运行位置](getting-started.md#execution-location)。可以让 Agent 按 [自主接入提示词](getting-started.md#agent-assisted-setup) 操作，也可以自己选择以下形式：
+
+| 当前客户端的入口 | 使用哪一节 |
+| --- | --- |
+| CLI 命令，或项目/用户配置文件 | [CLI、IDE 与配置文件](#cli-and-config-files) |
+| JSON 导入或 `mcpServers` 编辑器 | [通用 JSON](#json-import--json-导入) |
+| 完整命令框，或命令/参数分离表单 | [命令表单](#command-forms--命令表单) |
+
+同一启动程序不意味着同一种客户端 JSON。以下新增 CLI、IDE、OpenClaw 与 Hermes 示例依据 2026-09-11 官方文档整理，仅验证示例结构与命令，尚未通过本项目真实客户端验收。已有桌面实测按当时版本保留在 [实测记录](#acceptance-record--实测记录)，不自动升级为当前版通过。
+
 <a id="common-preparation--公共准备"></a>
 ## 公共准备
 
-1. 客户端未提供兼容运行时时，先按 [Node 安装与检查步骤](getting-started.md#prepare-node) 准备 Node.js 22+；已有可用运行时直接复用。检查通过后重启桌面客户端，使其获得新的 PATH。
-2. 将管理员提供的完整 `credentials.env` 放到用户主目录下的 `.config/cloudbase-html-mcp/credentials.env`。MCP 自行定位，客户端环境变量栏不需要填 Key。
+1. 客户端未提供兼容运行时时，先按 [Node 安装与检查步骤](getting-started.md#prepare-node) 准备 Node.js 22+；已有可用运行时直接复用。新安装运行时后，重新打开终端或重启图形客户端，使其获得新的 PATH。
+2. 将自己准备或管理员提供的完整 `credentials.env` 放到运行 MCP 的用户主目录下的 `.config/cloudbase-html-mcp/credentials.env`。MCP 自行定位，客户端环境变量栏不需要填 Key。
 3. 选择下述一种输入形式，并固定包版本。首次下载超过客户端超时时，可先执行该版本的 `--version` 预下载，再连接。
 4. 保留已有 MCP 条目，保存后通过客户端控件重载，必要时重启应用。确认六工具可见，再调用 `hosting_status`、`list_html`；新用户列表为空正常。
 
 界面截图仅证明配置入口存在；本轮用户另提供了 WorkBuddy 与千问办公的实际验收结果截图，见下方实测记录。连接图标变绿或 `tools/list` 成功，都不能证明 CloudBase 连通或拥有上传权限。先核对 `hosting_status` 中的目标环境，再按用户单独请求发布指定 HTML。
+
+<a id="cli-and-config-files"></a>
+## CLI、IDE 与配置文件
+
+先检查是否已存在 `cloudbase_html`，已有条目按客户端更新方式修改，不重复创建或覆盖其他配置。以下示例不带 Key，不更改工具授权策略。
+
+### Claude Code
+
+按 [官方 MCP 文档](https://code.claude.com/docs/en/mcp) 使用用户级 STDIO 配置。以下为 macOS 命令：
+
+```sh
+claude mcp add --transport stdio --scope user cloudbase_html -- npx -y cloudbase-html-mcp@0.5.0-beta.1 serve
+```
+
+Windows 的命令部分使用 `cmd.exe` 包装：
+
+```text
+claude mcp add --transport stdio --scope user cloudbase_html -- cmd.exe /d /c npx -y cloudbase-html-mcp@0.5.0-beta.1 serve
+```
+
+`--scope user` 让工具跨项目可用；所有 Claude Code 选项放在服务名称前，`--` 后是 MCP 的启动程序。添加后在 Claude Code 的 `/mcp` 中检查加载与工具状态，按客户端提示重新连接，再完成 [实际调用验证](getting-started.md#5-verify-the-connection)。本项目尚未实测这两条客户端命令。
+
+### Qoder CLI / IDE
+
+[Qoder CLI 官方参考](https://docs.qoder.com/cli/mcp-reference) 支持用户级 `~/.qoder/settings.json` 和项目级 `.mcp.json` 中的 `mcpServers`。选择所需作用域，把下节 JSON 的 `cloudbase_html` 条目合并进去；CLI 中使用 `/mcp reload` 重新发现。Qoder IDE 与 QoderWork 是不同入口，IDE 请按对应版本的 MCP 设置导入，不将 QoderWork 界面路径套到 IDE。此处是文档依据，不是本项目已测声明。
+
+### Hermes Agent
+
+[Hermes 官方指南](https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes/) 使用 `~/.hermes/config.yaml` 中的 `mcp_servers`。macOS 示例：
+
+```yaml
+mcp_servers:
+  cloudbase_html:
+    command: npx
+    args: ["-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
+```
+
+已有 `mcp_servers` 时只合并一个子项，不能重复 YAML 顶层键。Windows 将 `command` 改为 `cmd.exe`，`args` 使用下节 Windows JSON 中同一组参数。保存后按官方指南使用 `/reload-mcp`，再完成实际工具调用验证；本项目尚未实测。远程、容器或 WSL 部署先核对运行位置与平台验证边界。
+
+### OpenClaw
+
+[OpenClaw 官方 MCP 管理](https://docs.openclaw.ai/cli/mcp/registry) 使用 `mcp.servers`；这与把 OpenClaw 自身作为 MCP Server 的 `openclaw mcp serve` 是不同方向。macOS 下待合并的配置片段：
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "cloudbase_html": {
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
+      }
+    }
+  }
+}
+```
+
+只合并 `mcp.servers.cloudbase_html`，保留其余 OpenClaw 配置。Windows 用下节 Windows JSON 对应的 `command` 和 `args` 替换。按官方管理入口保存、检查实际运行环境是否消费该配置，再验证六工具和只读调用；仅保存配置不代表工具已加载。此处未进行本项目真实 OpenClaw 验收，远程/容器组合也未验收。
 
 <a id="json-import--json-导入"></a>
 ## JSON 导入
@@ -57,7 +128,7 @@
 | --- | --- | --- |
 | WorkBuddy | 进入“配置 MCP”的 JSON 编辑器，使用 `mcpServers`、`command`、`args`。 | [官方 MCP 指南](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/MCP-Guide) 给出同结构；用户已在 macOS 通过 beta.2 接入。官方指南另说明用户级 `~/.workbuddy/mcp.json` 与项目级配置。 |
 | 千问办公 | “添加 → 通过 JSON 导入”，粘贴本页对应系统模板。 | 依据用户提供的导入界面及 macOS beta.2 实测；未取得公开的完整官方 schema，不把结论扩展为所有版本兼容。 |
-| QoderWork | “扩展 → 连接器 → 添加 → 粘贴 JSON 配置”，使用本页 STDIO 模板。 | [官方连接器指南](https://docs.qoder.com/qoderwork/connectors) 确认 JSON 导入和本地 STDIO；本项目在该客户端的实际接入仍待验收。 |
+| QoderWork | “扩展 → 连接器 → 添加 → 粘贴 JSON 配置”，使用本页 STDIO 模板。 | [官方连接器指南](https://docs.qoder.com/qoderwork/connectors) 确认 JSON 导入和本地 STDIO；用户已另行确认载入成功；精确受测版本及当前版完整调用验收仍待补齐。 |
 | 豆包工作 | 当前按“新建自定义连接器”的 STDIO 表单填写，不假设存在 JSON 导入。 | 用户截图显示分离的命令与参数字段；尚未确认公开 JSON 导入格式。用下节字段表映射本页 JSON，不编辑未经确认的客户端内部文件。 |
 
 本页示例均为标准 JSON：使用英文双引号，不含注释和尾逗号。表单中的传输类型选 **STDIO**；有额外必填字段时按客户端说明处理，不把远程 HTTP/SSE 示例混进本地启动配置。
@@ -93,19 +164,21 @@ cmd.exe /d /c npx -y cloudbase-html-mcp@0.5.0-beta.1 serve
 从旧版升级时，将连接器命令或 JSON 中的包版本改为本页示例的固定版本，保存并重载 MCP；无需移动凭据或站点登记。升级本身不会发布、恢复或下线任何站点。
 
 <a id="client-specific-entry-points--各客户端入口"></a>
-## 各客户端入口
+## 桌面客户端入口与参考证据
 
 | 客户端 | 入口和输入形式 | 已有依据及待验证项 |
 | --- | --- | --- |
-| QoderWork | “扩展 → 连接器 → 添加 → 粘贴 JSON 配置”；也可手填 STDIO，命令框接受完整命令。 | 官方指南确认入口；此前本机参考版本 0.9.17，当前安装包接入仍待实测。 |
-| 豆包工作 | 打开桌面工作区的“新建自定义连接器”，选择 STDIO，分别填写命令与参数；JSON 导入未确认。 | 已读取本机豆包 Mac 版本 2.27.11；工作区入口、版本对应表单和安装包接入仍待实测。不要改用远程 SSE/HTTP。 |
+| QoderWork | “扩展 → 连接器 → 添加 → 粘贴 JSON 配置”；也可手填 STDIO，命令框接受完整命令。 | 官方指南确认入口；此前本机参考版本 0.9.17，后续用户确认载入成功，当前版完整调用验收待进行。 |
+| 豆包工作 | 打开桌面工作区的“新建自定义连接器”，选择 STDIO，分别填写命令与参数；JSON 导入未确认。 | 已读取本机豆包 Mac 版本 2.27.11；后续用户确认载入成功，尚不能绑定到该参考版本，当前版完整调用验收待进行。不要改用远程 SSE/HTTP。 |
 | WorkBuddy | 截图入口为“专家·技能·连接器”→“自定义连接器”；官方新版指南为“插件→MCP 服务器”。进入“配置 MCP”后使用同一 JSON。截图包括“服务管理→配置 MCP”的 `mcpServers` 编辑器，以及命令和参数分开的 STDIO 表单。 | macOS 5.5.4（发布/下线截图可见）；用户确认自主接入、只读调用、发布和下线通过，更新与重启恢复待验收。 |
 | 千问办公 | “扩展→连接器→添加”。截图包括 JSON 导入和接受完整命令的 STDIO 表单，超时字段明确使用秒。 | 此前参考界面版本为 Mac 1.0.4；用户确认 JSON 导入、只读调用、重复发布保护和明确另建页面通过；本轮精确客户端版本未在截图展示。 |
 
-这是一份接入指南，兼容性结论以实际验证为准。运行时 CI 与公共 npm 冷启动结果见 [项目验证状态](../PROJECT.md#v05-release)；Windows 桌面接入、QoderWork 和豆包工作仍待实测。不同版本可能提供不同控件，验证后按实际版本更新本表。
+这是一份接入指南，兼容性结论以实际验证为准。运行时 CI 与公共 npm 冷启动结果见 [项目验证状态](../PROJECT.md#v05-release)；Windows 桌面实机按用户决定暂缓。用户后续确认 QoderWork、豆包工作载入成功，但未补齐该轮版本与完整调用记录；不据此宣称当前版功能验收通过。不同版本可能提供不同控件，验证后按实际版本更新本表。
 
 <a id="acceptance-record--实测记录"></a>
 ## 实测记录
+
+以下按历史受测版本记录，文中的待验收项指当时证据缺口。后续用户确认 WorkBuddy、千问完成进一步生命周期和共享文件测试，QoderWork、豆包工作载入成功；当前 v0.5 新特性验收另行记录，不把历史结果或截图扩展为新版本通过。
 
 2026-09-09，用户按当时 beta.2 接入流程确认下列两条路线成功，并提供客户端验收结果截图：
 

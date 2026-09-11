@@ -4,7 +4,7 @@
 <a id="1-the-main-workflow"></a>
 ## 1. 接入流程
 
-**准备 Node.js → 放好完整配置文件 → 在桌面 Agent 中添加 MCP → 验证 → 开始使用。**
+**准备 Node.js → 放好完整配置文件 → 在 Agent 中添加本地 MCP → 验证 → 开始使用。**
 
 <!-- release:version -->
 当前预发布版本为 **0.5.0-beta.1**。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。发布、CI、公共 npm 冷启动及桌面实测分别记录，见 [验证状态](../PROJECT.md#v05-release)。
@@ -12,7 +12,15 @@
 
 **此版本已发布到 npm 的 beta 标签**，可使用本页固定版本命令；同机共享登记目录的客户端应统一升级。
 
-你需要支持本地 STDIO MCP 的桌面客户端，以及已开启静态托管的 CloudBase 环境。管理员可以直接提供下述完整文件；收到文件后，无需 CloudBase 账号登录或重填三个参数。人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
+你需要能够启动本地 STDIO MCP 的 Agent 客户端，以及已开启静态托管的 CloudBase 环境。CLI、IDE 和桌面客户端按各自的配置格式接入。先选择自己的准备路线：
+
+| 你的情况 | 下一步 |
+| --- | --- |
+| 使用自己的 CloudBase 环境 | [准备环境](#new-to-cloudbase)、[获取 API Key](#get-cloudbase-api-key)，然后填写配置模板。 |
+| 已收到管理员的完整配置文件 | 直接 [放置文件](#for-the-recipient)，无需登录 CloudBase 或重填参数。 |
+| 为其他人准备接入 | 按 [配置准备与交付](#for-the-administrator) 填好文件，再交付无 Key 的客户端配置。 |
+
+人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
 
 <a id="prepare-node"></a>
 ### 准备 Node.js（首次使用）
@@ -29,7 +37,19 @@ npm --version
 npx --version
 ```
 
-三条命令均应输出版本号，Node 主版本应为 22 或更高。找不到命令时先关闭旧终端并重新打开；仍失败则检查安装是否完成及 PATH，不继续添加 MCP。检查通过后完全退出并重新打开桌面 Agent，使它也获得新的 PATH，然后领取或放置配置文件。
+三条命令均应输出版本号，Node 主版本应为 22 或更高。找不到命令时先关闭旧终端并重新打开；仍失败则检查安装是否完成及 PATH，不继续添加 MCP。检查通过后重新打开终端会话；图形客户端完全退出再打开，使其获得新的 PATH，然后准备或放置配置文件。
+
+<a id="execution-location"></a>
+### 先确认 MCP 在哪里运行
+
+默认路径中的“用户主目录”属于运行 MCP 进程的账户，`localPath` 也必须是该进程能读取的路径。先确认运行位置，再放文件：
+
+| 运行位置 | 文件与路径 |
+| --- | --- |
+| 本机 CLI、IDE 或桌面客户端 | 使用当前用户主目录；HTML 使用本机的实际绝对路径。 |
+| 远程机器、容器或 WSL 中的 Agent | 凭据、Node 和 HTML 必须在对应执行环境中可用；不能直接照搬电脑上的路径。仅在用户指定后传入或挂载文件，不自动搬运凭据。 |
+
+MCP 仍通过 STDIO 启动，不提供可填入远程 HTTP/SSE 栏的服务地址。当前项目的正式平台范围是 macOS/Windows；Linux、容器、WSL 及各 Agent 的远程执行组合未获本项目实机验收，配置说明不代表这些组合已验证。
 
 <a id="2-before-you-begin"></a>
 <a id="2-receive-or-prepare-the-configuration-file"></a>
@@ -37,9 +57,9 @@ npx --version
 
 <a id="43-alternative-prepare-the-private-environment-file-manually"></a>
 <a id="for-the-administrator"></a>
-### 管理员如何准备
+### 自行配置或为他人准备
 
-复制 [credentials.env.example](../templates/credentials.env.example)，填好三个必填值，以 **credentials.env** 文件名私下交付。使用环境的管理端 API Key，不使用 Publishable Key、Key ID 或 CAM SecretId/SecretKey。
+复制 [credentials.env.example](../templates/credentials.env.example)，填好三个必填值，以 **credentials.env** 文件名保存。自己使用时直接放到 [固定位置](#for-the-recipient)；为他人准备时整份私下交付。使用环境的管理端 API Key，不使用 Publishable Key、Key ID 或 CAM SecretId/SecretKey。
 
 ```dotenv
 CLOUDBASE_ENV_ID=your-env-id
@@ -54,12 +74,12 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 | 文件/配置 | 谁准备、放在哪里 | 是否含 Key |
 | --- | --- | --- |
 | `credentials.env` | 管理员填好，收件人放到下述固定用户目录。 | 是，私下交付。 |
-| MCP JSON | 使用本项目模板，粘到桌面 Agent 的导入或配置编辑器。 | 否，只说明启动哪个程序。 |
+| MCP JSON | 使用本项目模板，按 Agent 支持的格式添加，或粘到 JSON 导入/配置编辑器。 | 否，只说明启动哪个程序。 |
 
 尚未取得 Key 时按 [控制台获取步骤](#get-cloudbase-api-key) 操作；已拿到完整文件的收件人直接继续放置。本指南不会自动创建或发送凭据。
 
 <a id="for-the-recipient"></a>
-### 收件人如何放置
+### 配置文件如何放置
 
 保留 UTF-8 纯文本格式，支持 Windows 常见的 CRLF 换行和 UTF-8 BOM。
 
@@ -135,6 +155,8 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 
 上面全部为占位值。若创建后只剩脱敏列表、完整值已丢失，需要管理员重新创建并更新配置；已有有效的完整 Key 可以继续复用，不删除其他服务正在使用的 Key。Key 到期或更换后，更新收件人的文件并重载 MCP，再用 `hosting_status` 检查。
 
+多人可配置同一个 CloudBase 环境，分别发布页面；各机器的本地登记、名称和搜索不会自动同步，管理员也不会自动获得全员站点清单。本工具不提供成员级站点隔离或团队管理后台。整份文件交付是接入便利，不是本项目独有的授权机制；CloudBase [官方 MCP](https://docs.cloudbase.net/solutions/cloudbase-platform-edition/bind-agent-to-cloudbase) 也支持 API Key 下发接入。
+
 此 Key 是管理端环境凭据，权限范围大于本工具的六项能力；保持在私密配置文件中，不放入发布的 HTML、公开 MCP JSON 或 Git 仓库。它与 Publishable Key、CAM SecretId/SecretKey、CloudBase CLI 登录态不同。[官方 MCP 认证说明](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes) 介绍了环境 Key 换取临时凭据的机制；本项目使用上面的 `credentials.env` 格式，不照搬官方 MCP 的启动配置。
 
 **连通检查不要求自定义域名。** 初次接入可不设置 `CLOUDBASE_PUBLIC_BASE_URL`。默认域名限制见 [首次使用](#6-first-use)，绑定自定义域名是单独的配置决定，不需要为了完成接入上传控制台样例。
@@ -142,11 +164,12 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 <a id="3-let-your-agent-set-it-up"></a>
 <a id="44-register-the-server-in-your-client"></a>
 <a id="3-add-the-mcp-to-your-client"></a>
-## 3. 在桌面 Agent 中添加 MCP
+## 3. 在 Agent 中添加本地 MCP
 
-按 [桌面客户端接入](clients.md) 配置 QoderWork、豆包工作、WorkBuddy 或千问办公。指南提供 macOS/Windows 的完整 JSON、整条命令及分离参数形式。保留已有 MCP 条目，选择 **STDIO**，服务名称填 `cloudbase_html`；采用配置文件时，环境变量栏留空。
+按 [Agent 接入指南](clients.md#choose-integration) 选择当前客户端的 CLI 命令、JSON、YAML 或表单。可 [让 Agent 帮忙接入](#agent-assisted-setup)，也可 [手工配置](#manual-mcp-setup)；两条路线使用相同的凭据文件与固定包版本。保留已有 MCP 条目，选择 **STDIO**，服务名称填 `cloudbase_html`；采用配置文件时，环境变量栏留空。
 
-### 手工配置：直接复制 JSON
+<a id="manual-mcp-setup"></a>
+### 手工配置：支持 mcpServers 的客户端可直接复制 JSON
 
 选择“通过 JSON 导入”或“配置 MCP”的 JSON 编辑器，按运行 MCP 的电脑系统复制下列内容。已有配置时只合并 `mcpServers.cloudbase_html` 条目。`credentials.env` 事先放好后，JSON 中不需要 `env`、Key 或用户名路径。
 
@@ -178,11 +201,12 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
 
 WorkBuddy 和千问办公的 JSON 接入已有 beta.2 实测依据，QoderWork 官方说明提供 JSON 导入入口；豆包工作按已确认的 STDIO 表单分别填 `command` 与 `args`。具体入口、可选字段和格式差异见 [客户端指南](clients.md#json-import--json-导入)。不要把整段 JSON 当作终端命令。
 
+<a id="agent-assisted-setup"></a>
 ### 让 Agent 帮忙接入
 
 可以复制：
 
-> 阅读 https://github.com/zyfasos/cloudbase-html-mcp/blob/main/docs/getting-started.md ，帮我接入 cloudbase_html MCP。复用已有 Node 和管理员提供的完整 credentials.env，帮助放到固定位置，不让我拆分或重填 Key。使用对应系统和客户端的固定版本配置，保留其他连接器，完成 hosting_status 与 list_html 只读验证，不发布页面。如果指定 npm 版本未发布，明确说明并使用我提供的本地安装包或源码，不另装其他包。
+> 阅读 https://github.com/zyfasos/cloudbase-html-mcp/blob/main/docs/getting-started.md ，帮我接入 cloudbase_html MCP。先确认本次 MCP 在哪台机器、哪个账户运行。复用已有 Node 和我已经准备或领取的 credentials.env，不回显 Key；若缺少文件，引导我准备，不猜测环境或创建云资源。按本指南放到固定位置。读取当前客户端的官方接入说明，使用对应系统和客户端的固定版本配置，保留其他连接器，完成 hosting_status 与 list_html 只读验证，不发布页面。如果指定 npm 版本未发布，明确说明并使用我提供的本地安装包或源码，不另装其他包。
 
 已有本地检出时，可将上述链接替换为本仓库的 `docs/getting-started.md`。
 
@@ -259,13 +283,13 @@ cloudbase-html-mcp --version
 <a id="5-verify-the-connection"></a>
 ## 5. 验证连接
 
-在实际桌面客户端保存并重载 MCP，确认恰好提供 `hosting_status`、`publish_html`、`get_html`、`list_html`、`offline_html`、`online_html` 六工具。
+在实际 Agent 客户端保存并重载 MCP，确认恰好提供 `hosting_status`、`publish_html`、`get_html`、`list_html`、`offline_html`、`online_html` 六工具。
 
 调用 `hosting_status`，应返回 `ok: true`、预期环境和地域，以及新 CLI 使用的 `configuration.source` / `configuration.path`，不包含 Key。再调用 `list_html` 验证本地登记可读；新用户空列表正常。`hosting_status` 本身不读取目录，要使用完整管理能力，`management.enabled` 应为 true。
 
 新入口遇到配置缺失、不可读或无效时仍可初始化和发现工具；调用会返回配置位置及修复建议，不访问云端。放好文件后重载。`--env` 模式的错误指向客户端变量，不虚构文件路径。
 
-实际桌面客户端检查通过才算接入完成。独立 SDK 子进程通过不代表桌面配置已加载；接入检查不验证上传、删除权限或公网 HTML，首次发布需要用户另行指定文件并发起操作。
+实际 Agent 客户端检查通过才算接入完成。独立 SDK 子进程通过不代表当前客户端配置已加载；接入检查不验证上传、删除权限或公网 HTML，首次发布需要用户另行指定文件并发起操作。
 
 <a id="6-first-use"></a>
 ## 6. 首次使用

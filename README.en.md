@@ -2,9 +2,9 @@
 
 [简体中文 — primary documentation](README.md) | English overview
 
-A local STDIO MCP server that lets your desktop AI agent publish a designated HTML file to your CloudBase environment, update the same URL, take a site offline and restore it from a local file.
+A local STDIO MCP server that lets your AI agent publish a designated HTML file to your CloudBase environment, update the same URL, take a site offline and restore it from a local file.
 
-The motivation is simple: share an agent-generated report, demo or interactive page, keep updating the same link, and take it offline or restore it when needed. The workflow focuses on single HTML files, desktop MCP clients and an administrator-provided configuration file; it needs no separate remote MCP service. See the [scenarios and lifecycle diagram](README.md#典型场景) in the Chinese README.
+The motivation is simple: share an agent-generated report, demo or interactive page, keep updating the same link, and take it offline or restore it when needed. The workflow focuses on single HTML files and agents that can launch a local STDIO MCP server. Configure your own CloudBase environment or receive a completed configuration file from an administrator; no separate remote MCP service or application database is required. See the [scenarios and lifecycle diagram](README.md#典型场景) in the Chinese README.
 
 [CloudBase](https://cloudbase.net/) is Tencent Cloud's application development platform. This tool uses its static hosting and environment authentication for one focused workflow: publishing a single local HTML file to your own environment. Cloud service charges are separate from the MIT-licensed tool. See the [Chinese positioning notes](PROJECT.md#positioning-and-related-tools) for related projects and scope.
 
@@ -22,13 +22,15 @@ This release adds optional site names, HTML titles and local keyword search, plu
 
 ## Setup
 
-Receive a completed `credentials.env` from your administrator and place it at `.config/cloudbase-html-mcp/credentials.env` under your home directory. Then add the MCP using the appropriate client configuration, reload it, and run `hosting_status` and `list_html`. Administrator-issued Keys require no CloudBase login.
+Prepare `credentials.env` for your own environment or receive it from your administrator. Place it at `.config/cloudbase-html-mcp/credentials.env` under the home directory of the user running the MCP process. Then add the MCP using the appropriate client configuration, reload it, and run `hosting_status` and `list_html`. Administrator-issued Keys require no CloudBase login. Let your agent help with setup or configure it manually. The configuration and HTML must be accessible where the MCP runs; remote/container setups need their own path mapping and verification.
 
 - [Getting started (Chinese)](docs/getting-started.md): configuration placement, source/local package installation, optional wizard and troubleshooting.
-- [Desktop clients (Chinese)](docs/clients.md): JSON and command forms for macOS and Windows.
+- [Agent integrations (Chinese)](docs/clients.md): CLI, IDE and desktop configuration forms, with documented examples separated from tested compatibility.
 - [Architecture (Chinese)](docs/architecture.md): six-tool contracts and lifecycle sequences.
 
 Only one UTF-8 HTML file, up to 20 MiB, is uploaded; associated local assets are not included. Offline operations delete cloud content, and restoration requires the local file and registration. Storage success and public accessibility are reported separately. Setup itself publishes nothing.
+
+“Lightweight” describes the focused workflow, not a measured advantage in installation size, speed or token use. Multiple users can use one environment, but site catalogs and search remain local; this is not a shared team catalog.
 
 The full documentation is maintained in Chinese. This page is a brief overview, not a parallel translation.
 

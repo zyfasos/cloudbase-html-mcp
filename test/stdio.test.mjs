@@ -328,3 +328,34 @@ test('STDIO online preflight diagnoses missing files, missing registrations and 
     await assert.rejects(access(join(directory, 'fake-cloud.json')), { code: 'ENOENT' });
   } finally { await client.close(); }
 });
+
+test('v0.5 real STDIO discovers name/search schemas and preserves confirmed metadata across a failed update and restart', async (t) => {
+  const { directory, localPath } = await fixture(t);
+  await writeFile(localPath, '<html><head><title>初版</title></head><img src="missing.png"></html>');
+  let client = await session(directory); let first;
+  try {
+    const tools = (await client.listTools()).tools;
+    assert.equal(tools.length, 6);
+    for (const name of ['publish_html', 'online_html']) assert.ok(tools.find((t) => t.name === name).inputSchema.properties.displayName);
+    assert.ok(tools.find((t) => t.name === 'list_html').inputSchema.properties.query);
+    const r = await client.callTool({ name: 'publish_html', arguments: { localPath, displayName: '团队报告' } });
+    assert.equal(r.isError, false); first = r.structuredContent;
+    assert.equal(first.label, '团队报告'); assert.equal(first.htmlTitle, '初版');
+    assert.equal(first.resourceDiagnostics.details[0].localCheck.state, 'MISSING');
+  } finally { await client.close(); }
+  await writeFile(localPath, '<html><head><title>新版</title></head>V2</html>');
+  client = await session(directory, 'COS_CURRENT_PUT');
+  try {
+    const r = await client.callTool({ name: 'publish_html', arguments: { siteId: first.siteId, localPath, expectedSha256: first.sha256, displayName: '新的名称' } });
+    assert.equal(r.isError, true);
+  } finally { await client.close(); }
+  client = await session(directory);
+  try {
+    const before = (await client.callTool({ name: 'get_html', arguments: { siteId: first.siteId } })).structuredContent;
+    assert.equal(before.label, '团队报告'); assert.equal(before.htmlTitle, '初版');
+    const r = await client.callTool({ name: 'publish_html', arguments: { siteId: first.siteId, localPath, expectedSha256: before.sha256 } });
+    assert.equal(r.isError, false); assert.equal(r.structuredContent.label, '新的名称'); assert.equal(r.structuredContent.htmlTitle, '新版');
+    const found = (await client.callTool({ name: 'list_html', arguments: { query: '新的 新版' } })).structuredContent;
+    assert.equal(found.total, 1); assert.equal(found.sites[0].siteId, first.siteId); assert.equal(found.cloudVerified, false);
+  } finally { await client.close(); }
+});

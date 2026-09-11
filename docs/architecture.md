@@ -31,7 +31,8 @@ flowchart LR
 | [setup.mjs](../scripts/setup.mjs) / [向导逻辑](../src/setup.mjs) | 独立交互式 CLI，环境/地域预填、隐藏输入 API Key、只读检查、生成客户端配置；不占用 MCP STDIO，不自动修改客户端。 |
 | [config-file.mjs](../src/config-file.mjs) / [start.mjs](../scripts/start.mjs) | 仓库外私密文件读取与原子保存；新默认入口可受控收紧权限，旧 start 显式文件入口继续严格失败退出。 |
 | [publisher.mjs](../src/publisher.mjs) | 文件验证、目标解析协调、当前对象发布、下线、恢复、列表与公网验证。 |
-| [html-resources.mjs](../src/html-resources.mjs) | 单向扫描 HTML 属性及 CSS URL，提示相对资源；不验证完整语法、不作为安全检查。 |
+| [site-metadata.mjs](../src/site-metadata.mjs) | 名称校验、稳定label及NFKC关键词匹配；不访问云端或读取HTML。 |
+| [html-resources.mjs](../src/html-resources.mjs) | htmlparser2事件解析HTML资源与标题；CSS/srcset有界扫描，目录内元数据检查、脱敏与截断；不作为安全检查。 |
 | [registry.mjs](../src/registry.mjs) | v2 站点目录、v1 兼容迁移、环境级锁、路径绑定和未完成操作。 |
 | [domains.mjs](../src/domains.mjs) | 网关发现、候选筛选、规范 URL 解析与当前环境归属校验。 |
 | [cloudbase.mjs](../src/cloudbase.mjs) | 配置、临时凭据、官方 TCB/COS SDK 适配、版本控制闸门、分页与逐对象删除结果检查。 |
@@ -104,17 +105,22 @@ sequenceDiagram
 | 工具 | 输入 | 副作用与结果 |
 | --- | --- | --- |
 | hosting_status | 无 | 只读托管/路由；管理目录版本与是否启用；上传/删除权限不冒充已测。 |
-| publish_html | localPath；可选 siteId 或 siteUrl、expectedSha256、newPage | 新建或更新在线对象；返回哈希、URL、写入/登记/公网验证结果，不返回新的 versionKey。 |
+| publish_html | localPath；可选 siteId 或 siteUrl、expectedSha256、newPage、displayName | 新建或更新在线对象；返回哈希、URL、写入/登记/公网验证结果，不返回新的 versionKey。 |
 | get_html | siteId、siteUrl、localPath 三选一 | 查询真实云端；不回写本地目录；返回 observedStorage、生命周期与登记中的未完成操作。 |
-| list_html | lifecycle、offset、limit | 只读当前环境本地目录；默认 50，最大 100；结果有总数和 nextOffset。 |
+| list_html | query、lifecycle、offset、limit | 只读当前环境本地目录；默认 50，最大 100；结果有总数和 nextOffset。 |
 | offline_html | 一个选择器及 expectedSha256 | 删除当前对象及严格匹配的旧快照；保留登记，分开返回生命周期和清理完成度。 |
-| online_html | siteId 或 siteUrl，另带 localPath | 已登记离线站点恢复；不从旧快照读取内容。 |
+| online_html | siteId 或 siteUrl，另带 localPath；可选displayName | 已登记离线站点恢复；不从旧快照读取内容。 |
 
-localPath 必须为绝对 .html/.htm 文件、非空有效 UTF-8、最多 20 MiB；用 HTML 标签作基本检测，不是完整解析器。只上传原始字节，相对资源仅告警。扫描游标单向推进，不收集全部引用；畸形或未闭合标签、CSS URL 不触发反复扫描，也不会阻止后续发布。它是尽力而为的提示，不是完整 HTML/CSS 解析器。
+localPath 必须为绝对 .html/.htm 文件、非空有效UTF-8、最多20 MiB；仍只上传原始字节。htmlparser2@12.0.0以事件接口共用一次解析收集资源和head/title，不建立DOM；只对明确静态属性及style内CSS扫描，不执行脚本、不递归外部内容。资源最多收集1,000种、返回100项，明细引用最多256字符；不输出data内容、URL凭据/查询/片段。扫描、收集及本地检查的完整度分别报告，诊断失败不阻止发布。字段及限制见[用户指南](getting-started.md#resource-diagnostics)。
+
+目录内资源检查仅用realpath/lstat/readlink/stat，不读取资源内容；以用户HTML物理目录为边界，逐路径检查符号链接，越界及无法映射的base不猜测。每路径最多64层、累计最多4,000次元数据调用，超限返回未检查；这不保证网络文件系统本身的响应时延。
+
+发布/恢复成功返回resourceDiagnostics、displayName、htmlTitle、label与metadataPersisted。get/list/offline返回已登记名称/标题及计算label；未知元数据为空，label兜底ID。只读查询不下载HTML提取标题，登记不可用时保持既有降级规则。
+
 
 未预期的非 `PublishError` 异常返回 `INTERNAL_ERROR`、`stage: INTERNAL` 和 `diagnostic`：`errorId` 用于关联本次结果与 stderr，`errorType` 和可选 `errorCode` 只来自固定白名单。stderr 仅包含工具名、通用错误码及同一诊断字段，不输出原始消息、堆栈、路径或参数。该规则针对新增的未预期异常诊断，不表示所有协议字段均经过同一过滤。
 
-公网验证始终以结果返回失败，不向调用方抛异常。已识别失败分为 `TIMEOUT`、`ABORTED`、`DNS_ERROR`、`TLS_ERROR`、`RESPONSE_TOO_LARGE`；其他网络错误保留 `PUBLIC_FETCH_FAILED`。只按固定错误类型/代码分类，检查至多四层 cause；不回传任意错误文本。上述扫描及诊断改动纳入 beta.6；beta.5 保留原行为。
+公网验证始终以结果返回失败，不向调用方抛异常。已识别失败分为 `TIMEOUT`、`ABORTED`、`DNS_ERROR`、`TLS_ERROR`、`RESPONSE_TOO_LARGE`；其他网络错误保留 `PUBLIC_FETCH_FAILED`。只按固定错误类型/代码分类，检查至多四层 cause；不回传任意错误文本。上述错误分类纳入v0.4 beta.6；结构化资源诊断与名称搜索从v0.5候选版开始提供。
 
 online_html 缺少 siteId/siteUrl 时，在取得本地登记锁或连接云端之前返回 `ONE_PAGE_SELECTOR_REQUIRED`；不按 localPath 的默认绑定代选目标。
 
@@ -145,6 +151,14 @@ v1 哈希路径文件兼容只读；首次写操作持锁将其迁入 v2，旧�
 旧 v2 的 localPaths 可能混有历史路径：读取时将来源历史保留为 sourcePaths，并按 bindings 重建 localPaths；这一步只改变返回视图。持锁写入时原子保存规范化结果。pending 站点只有成为当前绑定后才获得该路径选择器，失败提升期间路径仍属于原站点。
 
 lifecycle 只有 online/offline 两个业务值；null 代表尚无确认值。state 为 PENDING、UNCERTAIN、STORAGE_VERIFIED，operation 记录 publish/online/offline 的目标哈希和进度；它们不替代生命周期。列表是最近保存状态，查询则返回云端实际观察值，可能与登记不同。
+
+### 名称、标题与候选操作
+
+v2站点新增可选displayName/htmlTitle；读取时校验类型与长度，不写入label或资源诊断。旧v1/v2没有这些字段时兼容读取，沿用原迁移及pending身份。旧版保存会重建记录，可能丢弃新字段，因此同目录客户端必须统一升级，降级写入不承诺保留元数据。
+
+发布前的operation.metadata保存本次候选名称/标题；已确认字段保留旧值。STORAGE_VERIFIED保存才提升候选。更新失败、恢复超时或最后一次登记写入失败时，候选留在operation；相同哈希重试省略名称时复用候选名称。不同内容不继承旧候选，省略名称仍保留已确认名。offline保存只保留已确认字段，不能将候选误提升。现有环境锁/原子替换继续覆盖这些字段。
+
+搜索在readCatalog后的内存视图执行：query最多200个Unicode字符，NFKC/lowercase后空白分词，词间AND、字段间OR；仅匹配名称、标题及来源basename，不搜路径目录和HTML。搜索及lifecycle过滤在排序分页之前，使用原updatedAt降序和siteId兜底；不另建索引、不写目录。label按自定义名、标题、当前文件basename、来源basename、ID依次兜底；名称不参与写操作定位。
 
 ## 5. 发布与更新时序
 
@@ -273,6 +287,7 @@ sequenceDiagram
 | `lifecycle.test.mjs` | v1 迁移、URL 归属、下线/恢复、分页清理、清单与 SDK 适配 |
 | `review-fixes.test.mjs` | 路径重绑及旧 v2 兼容、输入/规范路径分别核验、元数据读取降级和写入阻断 |
 | `recovery.test.mjs` | 配置引导及恢复建议 |
+| `html-resources.test.mjs` / `site-metadata.test.mjs` | 静态引用/范围/脱敏/20MiB/截断、候选提升与故障恢复、元数据兼容与搜索、共享路径隔离 |
 | `stdio.test.mjs` | 六工具完整流程、重启/退出恢复、符号链接入口 |
 
 开发与 CI 先运行 npm run test:prepare，通过实际 tarball 安装准备独立 npm 缓存；该准备步骤允许 npm 网络请求，不访问云端环境。npm test 保持离线，不借用个人默认缓存。测试预加载模块通过 file: URL 传给 --import，兼容 Windows 盘符、空格和中文路径；启动失败输出经过脱敏的子进程诊断。STDIO 使用真实子进程和官方 SDK，云端是替身，文件系统使用真实临时文件。以下为 v0.3 的历史云端验收，不能替代 v0.4 安装包验收：2026-09-09 另经用户授权，以合成页面完成真实连接、ID/路径/URL 查询、固定 URL 更新、冲突保护、下线删除、公网 404、重启目录读取和恢复；站点最终仅有当前 HTML，没有项目快照。程序请求观察到 attachment，浏览器自动化未完成导航；用户随后提供的 Chrome 截图确认原 URL 正常渲染恢复后的 v2。保留两类证据，不将自动化失败或下载头推断成所有浏览器无法展示；已有快照删除及故障恢复等仍只有离线证据，不能将本轮正常流程实测泛化到全部边界。

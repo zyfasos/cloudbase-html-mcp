@@ -42,7 +42,7 @@ test('packed artifact installs offline, preserves default config and catalog acr
   await mkdir(join(file, '..'), { recursive: true, mode: 0o700 });
   const credentials = 'CLOUDBASE_ENV_ID=package-env\nCLOUDBASE_REGION=ap-shanghai\nCLOUDBASE_API_KEY=offline-package-key\n';
   await writeFile(file, credentials, { mode: 0o600 });
-  const html = join(home, '测试 页面.html'); await writeFile(html, '<html>package v1</html>');
+  const html = join(home, '测试 页面.html'); await writeFile(html, '<html><head><title>package v1</title></head><img src=missing.png></html>');
   const preload = new URL('./fixtures/packaged-cloud.mjs', import.meta.url).href;
   async function session(callback) {
     const client = new Client({ name: 'packed-artifact', version: '1.0.0' });
@@ -64,13 +64,17 @@ test('packed artifact installs offline, preserves default config and catalog acr
   await session(async (client) => {
     assert.equal((await client.listTools()).tools.length, 6);
     assert.equal((await call(client, 'hosting_status')).configuration.path, file);
-    first = await call(client, 'publish_html', { localPath: html });
+    first = await call(client, 'publish_html', { localPath: html, displayName: 'Package report' });
+    assert.equal(first.label, 'Package report');
+    assert.equal(first.resourceDiagnostics.details[0].localCheck.state, 'MISSING');
     assert.equal(first.url, `https://package.example/sites/${first.siteId}/`);
     const old = await call(client, 'get_html', { siteUrl: first.url });
-    await writeFile(html, '<html>package v2</html>');
+    await writeFile(html, '<html><head><title>package v2</title></head>v2</html>');
     const updated = await call(client, 'publish_html', { localPath: html, siteUrl: first.url, expectedSha256: old.sha256 });
     assert.equal(updated.url, first.url);
-    second = await call(client, 'publish_html', { localPath: html, newPage: true });
+    assert.equal(updated.htmlTitle, 'package v2');
+    assert.equal(updated.label, 'Package report');
+    second = await call(client, 'publish_html', { localPath: html, newPage: true, displayName: 'Second copy' });
     secondRegistration = (await call(client, 'list_html')).sites.find((s) => s.siteId === second.siteId);
     await call(client, 'offline_html', { siteId: first.siteId, expectedSha256: updated.sha256 });
   });
@@ -82,6 +86,10 @@ test('packed artifact installs offline, preserves default config and catalog acr
     assert.equal(listed.sites[0].siteId, first.siteId);
     const restored = await call(client, 'online_html', { siteId: first.siteId, localPath: html });
     assert.equal(restored.url, first.url);
+    assert.equal(restored.label, 'Package report');
+    const search = await call(client, 'list_html', { query: 'REPORT v2' });
+    assert.equal(search.total, 1);
+    assert.equal(search.sites[0].siteId, first.siteId);
     assert.equal(restored.pathBinding.defaultSiteId, second.siteId);
     assert.equal((await call(client, 'get_html', { localPath: html })).siteId, second.siteId);
     assert.equal((await call(client, 'get_html', { siteId: second.siteId })).sha256, second.sha256);

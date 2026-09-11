@@ -5,7 +5,8 @@ import { PublishError, readLimited } from './cloudbase.mjs';
 import { accessCandidates, parseSiteUrl, validateSiteUrl } from './domains.mjs';
 import { currentKey, cleanupSnapshots } from './cleanup.mjs';
 import { publicRecovery } from './recovery.mjs';
-import { hasRelativeResources } from './html-resources.mjs';
+import { inspectHtml } from './html-resources.mjs';
+import { normalizeDisplayName, siteMetadata } from './site-metadata.mjs';
 import { classifyError } from './errors.mjs';
 
 export const MAX_HTML_BYTES = 20 * 1024 * 1024;
@@ -43,12 +44,7 @@ export async function loadHtml(localPath) {
     try { html = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
     catch { throw new PublishError('INPUT', 'UTF8_REQUIRED'); }
     if (!/<html[\s>]/i.test(html)) throw new PublishError('INPUT', 'HTML_DOCUMENT_REQUIRED');
-    // This is a dependency warning, not a security scanner or HTML sanitizer.
-    const warnings = [];
-    if (hasRelativeResources(html)) {
-      warnings.push('检测到可能的相对资源引用；本工具仅上传此 HTML，关联文件不会一起上传。');
-    }
-    return { bytes, warnings };
+    return { bytes, ...await inspectHtml(html, localPath) };
   } catch (error) {
     if (error instanceof PublishError) throw error;
     throw new PublishError('INPUT', 'FILE_NOT_READABLE');
@@ -134,11 +130,12 @@ export class Publisher {
   async publish(args) { return this.write(args, false); }
   async online(args) { this.requireRegistry(); return this.write(args, true); }
 
-  async write({ localPath, siteId, siteUrl, expectedSha256, newPage = false }, restoring) {
+  async write({ localPath, siteId, siteUrl, expectedSha256, newPage = false, displayName }, restoring) {
     if (this.busy) throw new PublishError('PUBLISH', 'PUBLISH_BUSY');
     this.busy = true;
     let context;
     let registration;
+    let metadata;
     const pathBinding = () => {
       if (!registration) return {};
       const path = this.registry.entry(localPath).localPath;
@@ -149,7 +146,8 @@ export class Publisher {
     const registryWarnings = [];
     const action = restoring ? 'online' : 'publish';
     try {
-      const { bytes, warnings } = await loadHtml(localPath);
+      displayName = normalizeDisplayName(displayName);
+      const { bytes, warnings, htmlTitle, resourceDiagnostics } = await loadHtml(localPath);
       if (siteId !== undefined && siteUrl !== undefined) throw new PublishError('INPUT', 'ONE_PAGE_SELECTOR_REQUIRED');
       if (restoring && !siteId && !siteUrl) throw new PublishError('INPUT', 'ONE_PAGE_SELECTOR_REQUIRED');
       if (newPage && (siteId || siteUrl)) throw new PublishError('INPUT', 'NEW_PAGE_WITH_SITE_ID');
@@ -180,6 +178,9 @@ export class Publisher {
       }
       const store = selected?.store ?? await this.backend.connect();
       const hash = sha256(bytes);
+      metadata = { htmlTitle, ...(displayName !== undefined ? { displayName } :
+        site?.operation?.sha256 === hash && site.operation.metadata?.displayName !== undefined
+          ? { displayName: site.operation.metadata.displayName } : {}) };
       const key = currentKey(siteId);
       context = { siteId, sha256: hash, url: accessCandidates(store, key).candidates[0]?.url, writeState: 'NOT_STARTED' };
       const current = await this.backend.head(key);
@@ -192,7 +193,7 @@ export class Publisher {
           throw new PublishError('PUBLISH', 'VERSION_CONFLICT');
         }
       }
-      await registration?.save({ siteId, sha256: hash, state: 'PENDING', url: context.url, action, newPage });
+      await registration?.save({ siteId, sha256: hash, state: 'PENDING', url: context.url, action, newPage, metadata });
       if (current?.sha256 !== hash) {
         context.writeState = 'CURRENT_WRITE_ATTEMPTED';
         await this.backend.put(key, bytes, hash, 'COS_CURRENT_PUT');
@@ -203,14 +204,16 @@ export class Publisher {
       context.lifecycle = 'online';
       const verified = await verifyAccess(store, key, hash, this.fetcher);
       let registryState = registration ? 'SAVED' : 'DISABLED';
-      try { await registration?.save({ siteId, sha256: hash, state: 'STORAGE_VERIFIED', lifecycle: 'online', url: verified.url ?? context.url, action, newPage }); }
+      try { await registration?.save({ siteId, sha256: hash, state: 'STORAGE_VERIFIED', lifecycle: 'online', url: verified.url ?? context.url, action, newPage, metadata }); }
       catch { registryState = 'UPDATE_FAILED'; registryWarnings.push('云端存储已验证，但本地登记状态更新失败。保留 siteId，查询实际状态后重试原操作。'); }
       const { publicCheck } = verified;
       return { ...context, ...verified, ...pathBinding(), status: publicCheck.verified ? 'PUBLISHED' : publicCheck.defaultDomainNotice ? 'PUBLISHED_PREVIEW' : 'UPLOADED_NOT_PUBLICLY_VERIFIED',
-        bytes: bytes.length, warnings, registry: { state: registryState, warnings: registryWarnings }, ...publicRecovery(siteId, publicCheck) };
+        bytes: bytes.length, warnings, resourceDiagnostics,
+        ...siteMetadata({ ...(registration?.catalog.sites[siteId] ?? site), ...metadata, siteId,
+          sourcePaths: [...(site?.sourcePaths ?? []), localPath] }), metadataPersisted: registryState === 'SAVED', registry: { state: registryState, warnings: registryWarnings }, ...publicRecovery(siteId, publicCheck) };
     } catch (error) {
       if (context && context.writeState !== 'NOT_STARTED' && registration) {
-        try { await registration.save({ siteId: context.siteId, sha256: context.sha256, state: 'UNCERTAIN', action, newPage }); }
+        try { await registration.save({ siteId: context.siteId, sha256: context.sha256, state: 'UNCERTAIN', action, newPage, metadata }); }
         catch { registryWarnings.push('本地状态写入失败；核对云端后重试原操作。'); }
       }
       if (error instanceof PublishError) {
@@ -231,14 +234,14 @@ export class Publisher {
     const store = selected.store ?? await this.backend.connect();
     const head = await this.backend.head(currentKey(siteId));
     if (!head) {
-      if (site?.lifecycle === 'offline') return { siteId, lifecycle: 'offline', observedStorage: 'absent',
+      if (site?.lifecycle === 'offline') return { siteId, ...siteMetadata(site, siteId), lifecycle: 'offline', observedStorage: 'absent',
         sha256: site.sha256, url: registeredSiteUrl(site), operation: site.operation, registryState: site.state,
         publicCheck: { verified: false, reason: 'OFFLINE' }, cleanup: { complete: !site.operation } };
       throw new PublishError('QUERY', 'SITE_NOT_FOUND', { siteId, registrationState: site?.state, operation: site?.operation,
         pendingRegistration: registration?.pending, registryDiagnostic });
     }
     const verified = await verifyAccess(store, currentKey(siteId), head.sha256, this.fetcher);
-    return { siteId, ...head, ...verified, lifecycle: 'online', registeredLifecycle: site?.lifecycle ?? null,
+    return { siteId, ...siteMetadata(site, siteId), ...head, ...verified, lifecycle: 'online', registeredLifecycle: site?.lifecycle ?? null,
       observedStorage: 'present', operation: site?.operation, registrationState: site?.state, pendingRegistration: registration?.pending,
       registryDiagnostic,
       ...publicRecovery(siteId, verified.publicCheck) };
@@ -247,7 +250,7 @@ export class Publisher {
   async list(args) {
     this.requireRegistry();
     const result = await this.registry.list(args);
-    return { ...result, sites: result.sites.map((site) => ({ ...site, ...(site.url ? { url: registeredSiteUrl(site) } : {}) })) };
+    return { ...result, sites: result.sites.map((site) => ({ ...site, ...siteMetadata(site), ...(site.url ? { url: registeredSiteUrl(site) } : {}) })) };
   }
 
   async offline(args) {
@@ -292,7 +295,7 @@ export class Publisher {
       let registryState = 'SAVED';
       try { await lock.saveSite({ siteId, sha256: args.expectedSha256, state: 'STORAGE_VERIFIED', lifecycle: 'offline', action: 'offline', url }); }
       catch { registryState = 'UPDATE_FAILED'; warnings.push('云端删除已验证，但本地最终登记失败；重试下线以完成本地确认。'); }
-      return { siteId, lifecycle: 'offline', url, sha256: args.expectedSha256, observedStorage: 'absent', cleanup,
+      return { siteId, ...siteMetadata(site, siteId), lifecycle: 'offline', url, sha256: args.expectedSha256, observedStorage: 'absent', cleanup,
         publicCheck: { verified: false, reason: 'DELETION_DOES_NOT_PURGE_EXTERNAL_CACHES' }, registry: { state: registryState, warnings } };
     } catch (e) {
       if (reserved && !deleteAttempted && !deletedCurrent) {

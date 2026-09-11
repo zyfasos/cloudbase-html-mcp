@@ -134,7 +134,85 @@ async function smoke(installed, directory, version) {
   } finally { await client.close(); }
 }
 
+const releaseRepo = 'zyfasos/cloudbase-html-mcp';
+const workflowPath = '.github/workflows/check.yml';
+function command(program, args, cwd, input) {
+  const r = spawnSync(program, args, { cwd, input, encoding: 'utf8', timeout: 60000, maxBuffer: 16 * 1024 * 1024 });
+  requireThat(r.status === 0, `${program} ${args[0]} 失败：${r.error?.message ?? r.stderr}`);
+  return r.stdout.trim();
+}
+export function cleanSource(directory = root, run = command) {
+  requireThat(!run('git', ['status', '--porcelain=v1', '--untracked-files=all'], directory), 'RELEASE_DIRTY: 工作区有未提交或未跟踪改动，先终审并提交');
+  const commit = run('git', ['rev-parse', 'HEAD'], directory);
+  requireThat(/^[0-9a-f]{40}$/.test(commit), 'RELEASE_NO_COMMIT');
+  requireThat(run('git', ['symbolic-ref', '--short', 'HEAD'], directory) === 'main', 'RELEASE_BRANCH: 仅从main发布');
+  return commit;
+}
+export function verifyCi(run, jobs, commit) {
+  requireThat(run.head_sha === commit && run.head_branch === 'main' && run.event === 'push' &&
+    run.path === workflowPath && run.head_repository?.full_name === releaseRepo &&
+    run.status === 'completed' && run.conclusion === 'success', 'RELEASE_CI: 目标提交的push检查未成功完成');
+  const expected = ['test (macos-latest, 22)', 'test (macos-latest, 24)', 'test (windows-latest, 22)', 'test (windows-latest, 24)'];
+  requireThat(jobs.total_count === 4 && jobs.jobs?.length === 4, 'RELEASE_CI_MATRIX: 四组CI结果不完整');
+  for (const name of expected) {
+    const matches = jobs.jobs.filter((job) => job.name === name);
+    requireThat(matches.length === 1, 'RELEASE_CI_MATRIX: 缺失或重复的CI任务');
+    const job = matches[0];
+    requireThat(job.status === 'completed' && job.conclusion === 'success' &&
+      ['Run npm run check', 'Run npm test'].every((step) => job.steps?.some((s) => s.name === step && s.status === 'completed' && s.conclusion === 'success')),
+    `RELEASE_CI_MATRIX: ${name}或必要检查未通过`);
+  }
+}
+export async function releaseGate(manifestPath, { directory = root, run = command } = {}) {
+  const commit = cleanSource(directory, run);
+  const manifest = await json(manifestPath);
+  requireThat(manifest.sourceCommit === commit && manifest.repository === releaseRepo, 'RELEASE_UNBOUND: 包没有绑定当前提交，须在提交后重新release:pack');
+  requireThat(basename(manifest.tarball) === manifest.tarball, '无效tarball文件名');
+  const tarball = resolve(dirname(manifestPath), manifest.tarball);
+  const bytes = await readFile(tarball);
+  requireThat(digest(bytes) === manifest.sha256 && `sha512-${digest(bytes, 'sha512', 'base64')}` === manifest.integrity, 'RELEASE_ARTIFACT_CHANGED: tgz被修改');
+  const files = unpack(bytes);
+  const pkg = await json(join(directory, 'package.json'));
+  checkPackage(files, pkg);
+  requireThat(manifest.version === pkg.version, 'RELEASE_VERSION: 候选版本不匹配');
+  assert.deepEqual([...files.keys()].sort(), Object.keys(manifest.files).sort(), 'RELEASE_FILES: manifest文件集合不一致');
+  for (const [file, content] of files) {
+    requireThat(digest(content) === manifest.files[file] && content.equals(await readFile(join(directory, file))), `RELEASE_FILES: ${file}与已验证源码不一致`);
+    // hash-object applies checkout filters (e.g. Windows CRLF) before comparing with the Git blob.
+    const blob = run('git', ['hash-object', '--path=' + file, '--stdin'], directory, content);
+    requireThat(blob === run('git', ['rev-parse', `${commit}:${file}`], directory), `RELEASE_FILES: ${file}不属于该提交`);
+  }
+  const remote = run('git', ['remote', 'get-url', 'origin'], directory);
+  requireThat(['git@github.com:' + releaseRepo + '.git', 'https://github.com/' + releaseRepo + '.git', 'https://github.com/' + releaseRepo].includes(remote), 'RELEASE_REMOTE: origin不是本项目GitHub仓库');
+  const remoteHead = () => run('git', ['ls-remote', '--exit-code', 'origin', 'refs/heads/main'], directory).split(/\s+/)[0];
+  requireThat(remoteHead() === commit, 'RELEASE_NOT_PUSHED: 远端main与目标提交不一致');
+  const runs = JSON.parse(run('gh', ['run', 'list', '--repo', releaseRepo, '--workflow', 'check.yml', '--commit', commit, '--branch', 'main', '--event', 'push', '--limit', '1', '--json', 'databaseId'], directory));
+  requireThat(runs.length === 1 && Number.isSafeInteger(runs[0].databaseId), 'RELEASE_CI_MISSING: 未找到目标提交的push CI');
+  const prefix = `repos/${releaseRepo}/actions/runs/${runs[0].databaseId}`;
+  const ci = JSON.parse(run('gh', ['api', prefix], directory));
+  requireThat(Number.isSafeInteger(ci.run_attempt) && ci.run_attempt > 0, 'RELEASE_CI: 无法确认最新CI尝试');
+  const jobs = JSON.parse(run('gh', ['api', `${prefix}/attempts/${ci.run_attempt}/jobs?per_page=100`], directory));
+  verifyCi(ci, jobs, commit);
+  requireThat(cleanSource(directory, run) === commit && remoteHead() === commit, 'RELEASE_CHANGED: 核验期间提交或远端发生变化');
+  return { passed: true, sourceCommit: commit, version: manifest.version, tarball, integrity: manifest.integrity, ciUrl: ci.html_url, ciAttempt: ci.run_attempt };
+}
+export async function publishRelease(manifestPath, tag, options = {}) {
+  requireThat(/^[a-z][a-z0-9-]*$/.test(tag), '无效npm tag');
+  const gate = await releaseGate(manifestPath, options);
+  // Only this supported entry performs publishing. No receipt/token can bypass a fresh gate.
+  const publish = options.publish ?? ((verified) => {
+    requireThat(process.env.npm_execpath, '请使用npm run release:publish');
+    const env = { ...process.env }; delete env.npm_config_allow_scripts;
+    const r = spawnSync(process.execPath, [process.env.npm_execpath, 'publish', verified.tarball, '--tag', tag,
+      '--access', 'public', '--ignore-scripts', `--registry=${registry}`], { cwd: root, env, stdio: 'inherit', timeout: 1200000 });
+    requireThat(r.status === 0, 'npm发布未成功确认；先查询registry状态，不要盲目重试');
+  });
+  await publish(gate);
+  return { ...gate, publishCommandCompleted: true, next: '等待registry可见后执行release:verify；尚不能据此宣称公共包验证通过' };
+}
+
 export async function packRelease() {
+  const sourceCommit = cleanSource();
   const pkg = await checkVersions();
   const directory = await mkdtemp(join(root, 'artifacts', 'release-'));
   const env = { ...process.env, npm_config_offline: 'true' };
@@ -160,7 +238,8 @@ export async function packRelease() {
       { ...env, npm_config_cache: process.env.CLOUDBASE_TEST_NPM_CACHE ?? join(root, 'artifacts/test-npm-cache') });
     protocol = await smoke(join(installed, 'node_modules', name), temporary, pkg.version);
   } finally { await rm(temporary, { recursive: true, force: true }); }
-  const report = { version: pkg.version, tarball: meta.filename, integrity: meta.integrity, sha256: digest(bytes), files: hashes,
+  requireThat(cleanSource() === sourceCommit, 'RELEASE_CHANGED: 打包核验期间提交发生变化');
+  const report = { sourceCommit, repository: releaseRepo, version: pkg.version, tarball: meta.filename, integrity: meta.integrity, sha256: digest(bytes), files: hashes,
     validatedAt: new Date().toISOString(), runtime: process.version, platform: process.platform, checks: ['npm run check', 'npm test'], protocol };
   await saveJson(join(directory, 'release.json'), report);
   return { directory, manifest: join(directory, 'release.json'), ...report };
@@ -208,8 +287,10 @@ async function main(args) {
   if (action === 'version' && rest.length === 1) return syncVersion(rest[0]);
   if (action === 'check' && !rest.length) return { version: (await checkVersions()).version, passed: true };
   if (action === 'pack' && !rest.length) { await mkdir(join(root, 'artifacts'), { recursive: true }); return packRelease(); }
+  if (action === 'gate' && rest.length === 2 && rest[1] === '--network') return releaseGate(resolve(rest[0]));
+  if (action === 'publish' && rest.length === 4 && rest[1] === '--tag' && rest[3] === '--confirm-publish') return publishRelease(resolve(rest[0]), rest[2]);
   if (action === 'verify' && rest.length >= 3 && rest[1] === '--network' && rest.slice(2).every((tag) => /^[a-z][a-z0-9-]*$/.test(tag))) return verifyPublic(resolve(rest[0]), rest.slice(2));
-  throw new Error('用法：npm run release:version -- VERSION | release:check | release:pack | release:verify -- MANIFEST --network beta [latest]。不执行提交、推送、发布或标签写入。');
+  throw new Error('用法：npm run release:version -- VERSION | release:check | release:pack | release:gate -- MANIFEST --network | release:publish -- MANIFEST --tag beta --confirm-publish | release:verify -- MANIFEST --network beta [latest]。publish仅在授权后使用，不自动提交、推送或更新其他标签。');
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { console.log(JSON.stringify(await main(process.argv.slice(2)), null, 2)); }

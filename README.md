@@ -7,7 +7,7 @@
 CloudBase HTML MCP 面向国内桌面 Agent 用户，将本地报告、演示或交互页面发布到自己的 CloudBase 环境。修改后更新原链接，需要时下线，再从指定的本地文件恢复。
 
 <!-- release:version -->
-本地 STDIO MCP · 六工具 · MIT · 当前版本 `0.4.0-beta.6`。[验证状态](PROJECT.md#v04-验证与发布安排)
+本地 STDIO MCP · 六工具 · MIT · 当前候选版本 `0.5.0-beta.1`。[验证状态](PROJECT.md#v04-验证与发布安排)
 <!-- /release:version -->
 
 <a id="为什么做这个工具"></a>
@@ -35,6 +35,8 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
 
 `hosting_status` 检查接入，`get_html` 查询单页，`list_html` 查看本地已知站点。域名映射不变时，更新和恢复保持 URL 不变；公网验证与存储成功分别报告，默认域名可能有预览限制，见 [适用范围](#适用范围)。
 
+本地候选版新增：发布时可设置站点名称、自动提取 HTML 标题；按名称、标题或来源文件名搜索。资源诊断列出静态引用及本地检查结果，仍只上传原 HTML，不自动内嵌资源。详见 [资源诊断与站点检索](docs/getting-started.md#resource-diagnostics)。**候选版尚未发布到 npm**；当前公开包仍为上一版，试用本候选请使用源码或维护者提供的本地包。
+
 ## 快速接入
 
 主线是 **Node.js 22+ → 放好配置文件 → 粘贴 MCP JSON → 验证**。
@@ -50,7 +52,7 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.6", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
     }
   }
 }
@@ -63,7 +65,7 @@ Agent 已经做好了页面，分享却还要传附件、解释如何打开、�
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.6", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
     }
   }
 }
@@ -84,7 +86,7 @@ WorkBuddy、千问办公和 QoderWork 的入口与依据见 [客户端指南](do
 | `hosting_status` | 检查凭据/托管，报告配置来源与登记设置；此检查不验证上传和删除权限。 |
 | `publish_html` | 发布指定本地 HTML，或更新在线页面。 |
 | `get_html` | 按 ID、URL 或登记路径查询，包括云端内容与公网验证。 |
-| `list_html` | 列出本地已知站点及最近确认状态。 |
+| `list_html` | 按关键词和状态筛选本地已知站点，返回名称、标题及最近确认状态。 |
 | `offline_html` | 删除当前云端 HTML 和旧快照，保留本地登记。 |
 | `online_html` | 从本次明确指定的文件恢复已登记离线站点。 |
 

@@ -9,8 +9,10 @@ The motivation is simple: share an agent-generated report, demo or interactive p
 [CloudBase](https://cloudbase.net/) is Tencent Cloud's application development platform. This tool uses its static hosting and environment authentication for one focused workflow: publishing a single local HTML file to your own environment. Cloud service charges are separate from the MIT-licensed tool. See the [Chinese positioning notes](PROJECT.md#positioning-and-related-tools) for related projects and scope.
 
 <!-- release:version -->
-**Current version: 0.4.0-beta.6.** Node.js 22+ is required; the package does not bundle Node. Release and acceptance evidence is recorded in [verification status](PROJECT.md#v04-验证与发布安排). Earlier desktop evidence does not establish acceptance of a newer version.
+**Candidate version: 0.5.0-beta.1.** Node.js 22+ is required; the package does not bundle Node. Release and acceptance evidence is recorded in [verification status](PROJECT.md#v04-验证与发布安排). Earlier desktop evidence does not establish acceptance of a newer version.
 <!-- /release:version -->
+
+This candidate adds optional site names, HTML titles and local keyword search, plus structured static-resource diagnostics on publish/restore. It still uploads only the original HTML. **This candidate is not yet on npm**; use a source checkout or a maintainer-provided local package. See the [Chinese guide](docs/getting-started.md#resource-diagnostics) for scope and upgrade notes.
 
 ## Workflow
 

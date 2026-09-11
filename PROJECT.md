@@ -54,7 +54,7 @@ v0.3 历史证据：2026-09-09 已在用户授权的一个环境中，使用合�
 ## 开源与发布
 
 <!-- release:version -->
-源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。本版为 `cloudbase-html-mcp@0.4.0-beta.6`，使用 npm 分发，接入模板固定具体版本；各标签指向及验收结论以下方版本记录为准。
+源码已在 [GitHub](https://github.com/zyfasos/cloudbase-html-mcp) 公开，采用 MIT；第三方依赖保留各自许可证。当前候选为 `cloudbase-html-mcp@0.5.0-beta.1`，尚未发布到 npm，接入模板固定具体版本；各标签指向及验收结论以下方版本记录为准。
 <!-- /release:version -->
 
 业务 HTML、私人环境信息、凭据、本地登记和 docs/implementation/ 不进入 Git（包括历史）；实施档案只在本地维护。
@@ -142,6 +142,12 @@ Windows 的 4 项跳过为原有平台限定测试。CI 和公共包验证不能
 2026-09-10，`0.4.0-beta.6` 已发布。macOS Node22.20.0 与24.20.0 本地各通过 check 和155项离线测试，覆盖实际安装包与真实 STDIO 子进程（云端使用测试替身）。[发布源码92a6391的四组CI](https://github.com/zyfasos/cloudbase-html-mcp/actions/runs/34461990556)全部通过：macOS Node22/24 各155通过，Windows Node22/24 各151通过、4项原有平台限定测试跳过，均零失败。
 
 公共 npm 全新缓存安装通过版本查询、六工具发现、默认文件/BOM诊断、20MiB边界、畸形HTML/CSS扫描和错误分类检查；registry完整性与本地发布包一致。扫描合成约20MiB样本在本机分别耗时513ms和407ms，仅为本机观测。未访问真实CloudBase，新版桌面与云端验收仍待完成。npm包内文档是发布时的源码快照，GitHub文档补记发布结果。
+
+## v0.5 候选：资源诊断与站点检索
+
+本地实现随publish/online返回结构化资源诊断，保留原warnings且不阻断发布；只上传原HTML。新增可选displayName、head/title提取、计算label及list_html关键词搜索，元数据仅保存在当前环境v2目录；候选随操作保留、存储验证后提升。安装流程、六工具和20MiB上限不变。范围与兼容限制见[快速开始](docs/getting-started.md#resource-diagnostics)。
+
+目标候选0.5.0-beta.1未发布；v0.4.0-beta.6仍为当前已发布包，0.4.0正式版也未发布。本轮macOS Node22.20.0和24.20.0各通过check及183项离线测试（0失败/跳过），包括真实STDIO与实际安装包的名称、搜索及诊断回归；云端使用替身。候选包最终核验见后续发布记录；尚未推送，未取得本轮远端CI或真实桌面/云端验收结果，不沿用v0.4的结论。Windows桌面实机按用户决定继续暂缓；真实云端实测须另行指定文件和环境授权。
 
 ## 文档语言
 

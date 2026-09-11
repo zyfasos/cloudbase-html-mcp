@@ -2,6 +2,7 @@ import { mkdir, open, readFile, readdir, realpath, rename, stat, unlink } from '
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { PublishError } from './errors.mjs';
+import { validMetadata, queryTerms, matchesQuery } from './site-metadata.mjs';
 
 const error = (code) => new PublishError('REGISTRY', code);
 const hash = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -52,12 +53,13 @@ export class PageRegistry {
     if (!catalog || catalog.version !== 2 || catalog.envId !== this.scope.envId || catalog.region !== this.scope.region ||
         !object(catalog.sites) || !object(catalog.bindings)) throw error('REGISTRY_CORRUPT');
     for (const [id, p] of Object.entries(catalog.sites)) {
-      if (!object(p) || id !== p.siteId || !validId(id) || !(p.sha256 === null || validHash(p.sha256)) ||
+      if (!object(p) || !validMetadata(p) || id !== p.siteId || !validId(id) || !(p.sha256 === null || validHash(p.sha256)) ||
           !states.includes(p.state) || ![null, 'online', 'offline'].includes(p.lifecycle) ||
           !Array.isArray(p.localPaths) || p.localPaths.some((v) => typeof v !== 'string' || !isAbsolute(v)) ||
           (p.sourcePaths !== undefined && (!Array.isArray(p.sourcePaths) || p.sourcePaths.some((v) => typeof v !== 'string' || !isAbsolute(v)))) ||
           (p.operation && (!object(p.operation) || !['publish', 'online', 'offline'].includes(p.operation.action) ||
             !validHash(p.operation.sha256) || !['PENDING', 'UNCERTAIN'].includes(p.operation.state) ||
+            (p.operation.metadata !== undefined && !validMetadata(p.operation.metadata)) ||
             (p.operation.localPath != null && !isAbsolute(p.operation.localPath))))) throw error('REGISTRY_CORRUPT');
     }
     for (const [path, binding] of Object.entries(catalog.bindings)) {
@@ -141,13 +143,14 @@ export class PageRegistry {
   async lookup(localPath) { return this.project(await this.readCatalog(), this.entry(localPath).localPath); }
   async lookupSite(siteId) { return (await this.readCatalog()).sites[siteId] ?? null; }
 
-  async list({ lifecycle, offset = 0, limit = 50 } = {}) {
+  async list({ lifecycle, query, offset = 0, limit = 50 } = {}) {
+    const terms = queryTerms(query);
     if ((lifecycle !== undefined && !['online', 'offline'].includes(lifecycle)) ||
         !Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new PublishError('INPUT', 'INVALID_LIST_OPTIONS');
     }
     const catalog = await this.readCatalog();
-    const sites = Object.values(catalog.sites).filter((p) => !lifecycle || p.lifecycle === lifecycle)
+    const sites = Object.values(catalog.sites).filter((p) => (!lifecycle || p.lifecycle === lifecycle) && matchesQuery(p, terms))
       .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || a.siteId.localeCompare(b.siteId));
     return { sites: sites.slice(offset, offset + limit), total: sites.length, offset,
       nextOffset: offset + limit < sites.length ? offset + limit : null, source: 'local', cloudVerified: false };
@@ -189,12 +192,16 @@ export class PageRegistry {
     const previous = catalog.sites[siteId];
     const path = data.localPath ?? entry.localPath;
     const now = new Date().toISOString();
-    const next = { siteId, sha256: sha256 ?? previous?.sha256 ?? null, state,
+    const candidate = action === 'offline' ? undefined : data.metadata ??
+      (previous?.operation?.sha256 === sha256 ? previous.operation.metadata : undefined);
+    const confirmed = { displayName: previous?.displayName ?? null, htmlTitle: previous?.htmlTitle ?? null,
+      ...(state === 'STORAGE_VERIFIED' && candidate ? candidate : {}) };
+    const next = { siteId, ...confirmed, sha256: sha256 ?? previous?.sha256 ?? null, state,
       lifecycle: lifecycle ?? previous?.lifecycle ?? null, verifiedAt: previous?.verifiedAt ?? null,
       localPaths: previous?.localPaths ?? [],
       sourcePaths: [...new Set([...(previous?.sourcePaths ?? previous?.localPaths ?? []), ...(path ? [path] : [])])],
       updatedAt: now, ...(previous?.url ? { url: previous.url } : {}), ...(url ? { url } : {}),
-      operation: state === 'STORAGE_VERIFIED' ? null : { action, sha256, state, ...(path ? { localPath: path } : {}) } };
+      operation: state === 'STORAGE_VERIFIED' ? null : { action, sha256, state, ...(path ? { localPath: path } : {}), ...(candidate ? { metadata: candidate } : {}) } };
     if (state === 'STORAGE_VERIFIED') next.verifiedAt = now;
     // Update a copy so a failed disk write cannot be mistaken for persisted state.
     const updated = structuredClone(catalog);

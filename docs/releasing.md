@@ -1,74 +1,69 @@
 # 发布维护指南
 
-面向维护者与执行发布任务的 Agent。运行时六工具不变；本流程只整理版本、安装包和验证证据。脚本不提交、不推送、不发布 npm、不写 dist-tag，也不访问 CloudBase。维护脚本及本指南不进入用户安装包。
+固定顺序：**终审 → 提交 → 推送 → 对应提交四组 CI 通过 → 核验安装包 → npm 发布 → 公共包验证 → 补记发布结果**。先取得本次提交、推送及发布的授权；缺少前置动作授权时，在发布前补齐，不把提交推送当作可选事项。
 
-## 1. 准备版本与变更说明
+## 1. 准备与终审
 
-先检查工作区，确认用户指定的发布范围。依赖变更或测试缓存清除时，先运行 `npm run test:prepare`；这个准备步骤可以访问 npm。
+检查工作区并保留用户其他改动。使用 `npm run release:version -- 实际版本` 同步版本、shrinkwrap、模板和当前安装示例；用 `npm run release:check` 查一致性。人工补充变更说明，历史版本和旧验收证据不做全局替换。
 
-```sh
-npm run release:version -- 0.4.0-beta.7
-npm run release:check
-```
+依赖改变或缓存清除后先 `npm run test:prepare`（可访问 npm），再运行 `npm run check` 与 `npm test`，完成代码及文档终审。未提交开发状态可以做这些验证，但不能生成正式 release manifest。
 
-上面的 beta.7 仅是下一版示例，实际版本按本次发布决策填写。`release:version` 同步 package、shrinkwrap、双系统 JSON、五份文档的 `release:version` 标记及其中的可执行安装命令。运行中断或写入失败后检查 diff、修正不一致再继续；脚本不是跨文件事务。
+## 2. 提交、推送并等待 CI
 
-历史 beta 记录、已受测客户端版本、架构中“从某版开始支持”的说明不会替换。不要用全仓库字符串替换。当前版本说明不得包含历史验收结论：新版本的发布、CI和桌面实测需分别提供证据。
+在相应授权范围内提交并推送 main，核对 GitHub 上该提交的 `.github/workflows/check.yml` push 运行。macOS/Windows × Node22/24 四组均须成功，check和test步骤也须执行成功；缺失、等待、失败、取消或整组跳过均不能发布，不借用旧提交或其他workflow的成功结果。
 
-人工补充本次变更说明、影响范围和未验证项到 [PROJECT.md](../PROJECT.md)，更新受影响的行为文档；命令示例之外的内容不能靠机械替换完成。`release:check` 进入 `npm run check` 和现有 CI；它检查版本、根依赖、MCP JSON 和安装示例的一致性，不等于文档语义审查或完整依赖审计。
+本轮不提供“beta可以先发布”的流程例外。Windows原有测试内部的平台限定跳过不等于CI任务跳过；四个CI任务本身必须成功。
 
-## 2. 核验本地安装包
+## 3. 生成绑定提交的安装包
 
 ```sh
 npm run release:pack
 ```
 
-此命令默认离线，依次执行 check、全量测试、实际 npm pack、发布白名单/源码字节/完整性核对，再在仓库外安装**刚生成的同一个 tgz**，查询版本并通过真实 STDIO 发现六工具、验证缺失配置诊断。临时 HOME 无凭据，不访问 CloudBase。全量测试中的生命周期验证使用云端替身。
+只允许干净的 main：已暂存、未暂存以及未忽略的未跟踪文件都会阻止打包。忽略的 artifacts、凭据及本地实施档案不要求提交，也不得为清空工作区把它们加入Git。
 
-输出目录为 `artifacts/release-随机后缀/`，包含 tgz、`release.json`、check/test日志。日志和报告保留实际 Node/系统与验证范围，不自动宣称 Windows 桌面或云端通过。目录被 Git 忽略；每次生成独立目录，失败时不会生成成功 manifest。
+命令默认离线，执行check、全量测试、npm pack、白名单/源码字节/完整性检查，并在仓库外安装刚生成的同一tgz，通过真实STDIO发现六工具和缺失配置诊断。临时HOME无凭据；业务生命周期由包回归中的云端替身验证，不操作真实CloudBase。
 
-仅发布已核验的这个 tgz。如果之后修改了包内源码、版本或文档，重新打包核验；不要重新从工作目录临时生成另一份包用于发布。
+`artifacts/release-随机后缀/` 保存日志、tgz和 `release.json`。manifest绑定完整 `sourceCommit`、仓库、包版本、tgz摘要及逐文件摘要。打包开始和结束核对提交及工作区；内容或提交变化需重新执行。
 
-## 3. 授权后提交、推送和发布
+旧版manifest没有提交绑定，不能补填SHA后当作新产物使用，必须在提交后重新跑release:pack。此前从脏工作区生成的v0.5预验包仅保留为历史测试证据，不可直接发布。
 
-对本次 diff 完成审查，按已有授权分别执行提交、推送、npm 发布；准备脚本不构成外部操作授权。核对 exact commit 对应的四组 CI，不能沿用上一版成功结果。允许用户明确授权先发布 beta 试用，但如 CI 尚未完成或失败必须如实记录。
+## 4. 闸门与发布入口
 
-下面路径替换为本次实际产物，固定使用 npm 官方 registry：
-
-```sh
-npm publish "artifacts/release-实际后缀/cloudbase-html-mcp-实际版本.tgz" --tag beta --access public --ignore-scripts --registry=https://registry.npmjs.org
-```
-
-npm 要求浏览器安全验证时，将实际官方链接交给用户完成。登录成功不等于发布成功；出现“processing”或刚发布后404时先等待并核对，不重复发布。同一版本不可重新覆盖。
-
-仅在用户授权标签变更时更新 `latest`；它可能再次要求本人验证：
+先做只读发布前检查（需要git网络、已登录的gh）：
 
 ```sh
-npm dist-tag add cloudbase-html-mcp@实际版本 latest --registry=https://registry.npmjs.org
+npm run release:gate -- artifacts/release-实际后缀/release.json --network
 ```
 
-正式版使用的 tag 与版本按实际发布决策确定，不能仅因版本同步脚本接受正式版本就自动发布。
+它实时核验：
 
-## 4. 验证公共 npm 包
+- 工作区干净、分支main、HEAD与manifest提交相同。
+- tgz摘要、解包文件集合和逐文件内容与manifest及该Git提交一致；Git的换行过滤用于兼容CRLF检出。
+- origin指向本项目GitHub仓库，远端main就是该提交。
+- 该提交最新一次check.yml push运行及最新重跑尝试成功，四组矩阵和必要步骤齐全。
+- 检查结束时本地提交和远端main仍一致。
+
+得到用户的npm发布授权后，只使用以下入口：
 
 ```sh
-npm run release:verify -- artifacts/release-实际后缀/release.json --network beta latest
+npm run release:publish -- artifacts/release-实际后缀/release.json --tag beta --confirm-publish
 ```
 
-必须显式传 `--network`，其后的标签是本次期望指向目标版本的标签；只更新 beta 时只传 `beta`，正式版可以只传 `latest`。这一步只读取 npm，不写标签、不读用户凭据。
+入口会重新执行完整闸门，随后才调用npm发布已核验的同一tgz，保留终端交互供npm本人安全验证。`--confirm-publish` 表达执行意图，不替代用户授权。没有force/skip-ci或旧检查凭据绕过入口。
 
-核对 registry 版本/完整性/标签与本地 manifest，使用全新 npm 缓存及临时用户目录安装固定版本，逐文件对照已验证包，再执行版本和真实 STDIO 六工具/缺失配置检查。成功后写 `public-verification.json`；失败退出非零，保留原始原因。历史报告按时间识别，失败重跑不代表先前成功报告仍是最新结果。
+不得以手工 `npm publish` 或 `--ignore-scripts` 绕过本项目流程。脚本约束的是受支持的发布入口，不能限制账号持有者在仓库外手动操作npm；AGENTS约定与脚本检查共同执行。
 
-该验证覆盖公共安装与协议入口；不会再次自动执行真实云端发布或删除，也不替代桌面客户端验收。实际工具业务行为由离线测试和独立授权实测分别证明。
+npm登录/安全验证在上述前置条件满足后处理；登录不等于发布。遇到processing、超时或不确定结果，先查询registry，不能盲目重发。同一npm版本不可覆盖。需要更新latest时另按已有标签授权执行，未授权不自动移动其他标签。
 
-## 5. 文档与实施档案收口
+## 5. 公共包验证与收口
 
-根据实际结果补记 PROJECT：版本、源码 commit、对应 CI链接及实际通过/跳过数量、公共包验证、未验证范围。npm包内文档是打包时快照；GitHub补记结果后不为同一版本重新发布npm。文档提交若已获授权则提交推送，并核对它自身的CI。
+```sh
+npm run release:verify -- artifacts/release-实际后缀/release.json --network beta
+```
 
-本任务绑定实施档案时，按 implementation-ledger 更新当前阶段、基线、验证证据和下一动作，执行适用校验。最终回复明确列出：
+如果本次也获授权更新了latest，将末尾改为 `beta latest`。该步骤读取官方registry，以全新缓存安装固定版本，对照本地manifest完整性和逐文件内容，再执行版本、六工具和缺失配置检查，写入带时间的 `public-verification.json`。它不写标签、不操作CloudBase；失败退出非零，不将旧报告当作最新成功证据。
 
-- 提交/推送和 npm 版本、标签的实际结果。
-- 本地、CI、公共 npm、桌面及真实云端分别验证到哪里。
-- 实施档案的本地绝对路径、状态/阶段、下一步；没有更新时说明原因。
+实际结果出来后补记 [PROJECT.md](../PROJECT.md)：源码commit、对应CI链接及实际通过/跳过数量、npm版本和标签、公共包验证、未验证范围。npm包内文档是发布源码快照；GitHub补记结果不为同一版本重新发布npm。文档提交推送仍按已有授权执行并核对其CI。
 
-规则负责约束流程，脚本负责可重复检查；都不能代替本人的 npm 验证或用户授权。
+当前任务绑定实施档案时同步阶段、基线、证据和下一动作并校验；最终明确报告Git/npm结果、验证范围、实施档案路径/阶段/下一步。脚本不自动提交、推送，也不替代用户授权或npm本人验证。

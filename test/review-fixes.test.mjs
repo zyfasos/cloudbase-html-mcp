@@ -21,9 +21,9 @@ async function setup(t, Registry = PageRegistry) {
 test('resource warnings detect real attributes and CSS URLs without matching attribute-name suffixes or quoted markup', async (t) => {
   const { localPath } = await fixture(t);
   for (const markup of [
-    '<IMG src="images/a.png">', '<script src=app.js></script>', '<link href=style.css>',
+    '<IMG src="images/a.png">', '<script src=app.js></script>', '<link rel=stylesheet href=style.css>',
     '<iframe src="/local/page"></iframe>', '<source src=video.webm>',
-    '<img src="https://example.com/a" href="local.html">',
+    '<video src="https://example.com/a" poster="local.png">',
     '<img title="x > y" src="a.png">', '<img title="x < y" src="a.png">',
     '<style>body { background: url( images/a.png ) }</style>',
     '<div style="background: URL(\'images/a.png\')"></div>',

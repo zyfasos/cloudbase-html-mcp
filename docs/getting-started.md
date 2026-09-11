@@ -7,8 +7,10 @@
 **准备 Node.js → 放好完整配置文件 → 在桌面 Agent 中添加 MCP → 验证 → 开始使用。**
 
 <!-- release:version -->
-当前版本为 **0.4.0-beta.6**。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。发布、CI、公共 npm 冷启动及桌面实测分别记录，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
+当前候选版本为 **0.5.0-beta.1**。请使用文中的固定版本命令，也可采用 [源码或本地安装包](#install-from-source-or-a-local-package)。macOS 和 Windows 均要求 Node.js 22+，安装包不内置 Node。发布、CI、公共 npm 冷启动及桌面实测分别记录，见 [验证状态](../PROJECT.md#v04-验证与发布安排)。
 <!-- /release:version -->
+
+**候选版尚未发布到 npm**；本页固定版本命令在发布后才可使用，当前可用源码或维护者提供的本地安装包。
 
 你需要支持本地 STDIO MCP 的桌面客户端，以及已开启静态托管的 CloudBase 环境。管理员可以直接提供下述完整文件；收到文件后，无需 CloudBase 账号登录或重填三个参数。人和 Agent 共用本指南；接入检查本身不授权发布 HTML 或修改云资源。
 
@@ -155,7 +157,7 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.6", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
     }
   }
 }
@@ -168,7 +170,7 @@ CLOUDBASE_API_KEY=your-full-environment-api-key
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.6", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
     }
   }
 }
@@ -208,7 +210,7 @@ Windows 的配置文件绝对路径不能包含 `..` 路径段；使用默认位
 自行准备配置的用户，可在本机交互式终端运行：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.6 setup
+npx -y cloudbase-html-mcp@0.5.0-beta.1 setup
 ```
 
 向导收集环境、地域及隐藏输入的 Key，只读检查通过后才保存。已有配置默认复用，输入 `edit` 修改；Key 留空则保留原值。取消或失败保留原文件，不自动修改桌面客户端配置。
@@ -246,7 +248,7 @@ v0.4 使用 `npm-shrinkwrap.json`。仍处于 v0.3 的检出不包含新 CLI，�
 收到本地 `.tgz` 时，将引号内的示例替换为实际文件路径，并保留双引号，避免空格被拆成多个参数。Windows 在命令提示符（cmd）中执行。此操作安装程序命令，不写入云端凭据：
 
 ```sh
-npm install --global --ignore-scripts "/absolute/path/cloudbase-html-mcp-0.4.0-beta.6.tgz"
+npm install --global --ignore-scripts "/absolute/path/cloudbase-html-mcp-0.5.0-beta.1.tgz"
 cloudbase-html-mcp --version
 ```
 
@@ -278,6 +280,45 @@ cloudbase-html-mcp --version
 使用 `publish_html` 上传**用户指定的文件**，要求 UTF-8 HTML、最多 20 MiB；不上传关联的本地资源。不为完成接入擅自上传样例或业务文件。
 
 成功结果包含 `siteId`、内容哈希、URL 和验证状态。需要从其他机器访问此页面时，保留站点 ID。
+
+<a id="resource-diagnostics"></a>
+### 关联资源诊断
+
+发布和恢复返回 `resourceDiagnostics`，原 `warnings` 字符串继续保留。诊断只解释问题，不阻止有效 HTML 发布，不改文件、不上传或内嵌关联资源。
+
+- `referenceCount`：发现的静态引用次数；`uniqueResourceCount`：已收集的去重资源数。`counts` 按相对、根路径、网络、内嵌、片段、非便携和未支持引用分类。
+- `scanComplete`：受支持的静态语法是否完整扫描；`countsComplete`：去重收集是否完整；`truncated`：收集或明细输出是否截断。去重上限1,000、明细上限100，超限时不能把显示的数量当成全部资源数。
+- `details`：资源类型、脱敏引用、来源位置、出现次数、`localCheck` 及处理建议。缺失和非便携引用优先显示；引用显示最多256字符，单项被裁剪时`referenceTruncated: true`，并同时设置总体truncated。内嵌data和片段仅计数，URL凭据、查询和片段不回显。
+- `localCheck.state`：`EXISTS`、`MISSING`、`NOT_FILE`、`INACCESSIBLE` 或 `NOT_CHECKED`。只有 HTML 所在物理目录内的相对路径做元数据检查，存在不代表已经上传；越界、无法映射的base、根路径和非便携引用不猜测为缺失。
+- `localChecksComplete`：收集的相对路径是否均得到确定检查结果；单路径最多64层、本次最多4,000次文件系统元数据操作，超限标为未检查。
+
+例如同一图标引用32次，诊断会将引用次数与不同资源数量分开。遇到 `MISSING`，提供缺失资源或重新生成已内嵌资源的单 HTML；若在检查范围外，则请用户核对来源，不据此断言文件不存在。内嵌后仍需重新检查20 MiB大小限制。
+
+只解析明确的静态资源属性、srcset及实际style内容中的CSS url/import；不执行JavaScript、不跟随外部CSS、不扫描普通导航链接、不请求网络资源。CSS转义等无法可靠解释时标记未完整分析。没有告警不等于页面完整自包含，成功发布也不等于资源完整。`get_html` 不重新扫描本地文件或关联资源。
+
+<a id="site-names-and-search"></a>
+### 为站点命名与检索
+
+对 Agent 说：“发布这份报告，命名为给领导看的半年报告。”对应 `publish_html` 的可选 `displayName`。它去除首尾空白后为1–120个Unicode字符，不接受空白名或控制字符；`online_html` 也支持。省略保留原名，本版不支持清空或独立改名。
+
+`htmlTitle` 从本次 HTML 的 head/title 提取，解码实体、合并空白，最多300字符；没有标题为空。自定义名称不会被标题覆盖。结果 `label` 按“自定义名称 → HTML标题 → 当前绑定文件名 → 历史来源文件名 → siteId”兜底；多个文件名按稳定排序选取。
+
+```json
+{
+  "query": "经营报告 领导",
+  "lifecycle": "online",
+  "offset": 0,
+  "limit": 20
+}
+```
+
+以上为 `list_html` 参数：`query` 最多200个Unicode字符，忽略首尾空白，NFKC与大小写归一化后按空白分词；每个词须命中名称、标题或某个来源文件名，允许各词命中不同字段。先搜索和状态过滤，再排序分页；`total` 为过滤后总数。空白查询等同不搜索，不支持正则或语义搜索，也不搜索完整路径或HTML。
+
+名称可以重复，只用于显示和搜索，不能作为写操作目标；目标不明确时让 Agent 展示候选并询问，不能直接选最新记录覆盖或删除。siteId/URL及共享文件默认绑定的规则不变。
+
+名称和标题仅保存在当前环境的本地v2目录。发布/恢复的候选元数据在存储核验后才成为已确认值；`get_html`/列表返回的是已登记元数据，外部改动云端内容不会自动刷新它。下线、重启和同内容更新保留名称；发布成功但最终本地保存失败返回 `metadataPersisted: false` 和登记诊断，按原操作重试恢复。
+
+关闭登记时，发布仅返回本次名称/标题，`metadataPersisted: false`，后续不能通过查询找回。旧记录没有字段时用文件名兜底，不因搜索自动写目录。**共享同一目录的客户端应统一升级**：旧版程序可能在写入时丢弃新增字段，不保证降级混用保留名称。换机器不会自动同步这些本地信息。
 
 <a id="update-an-existing-page"></a>
 ### 更新同一页面

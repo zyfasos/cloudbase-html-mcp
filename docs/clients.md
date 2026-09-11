@@ -1,8 +1,10 @@
 # 桌面客户端接入
 
 <!-- release:version -->
-本指南说明如何手动添加本地 STDIO MCP。当前版本为 **0.4.0-beta.6**。发布及运行时验证见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)；下方客户端证据保留实际受测版本，不随接入命令升级。
+本指南说明如何手动添加本地 STDIO MCP。当前候选版本为 **0.5.0-beta.1**。发布及运行时验证见 [项目验证状态](../PROJECT.md#v04-验证与发布安排)；下方客户端证据保留实际受测版本，不随接入命令升级。
 <!-- /release:version -->
+
+**此候选版尚未发布到 npm**。下面的固定版本配置仅在发布后可用；现在使用 [源码或本地包](getting-started.md#install-from-source-or-a-local-package)。同机共享目录的客户端升级到同一新版；旧版写入可能丢失新增站点名称和标题。现有桌面证据不等于本候选验收通过。
 
 <a id="common-preparation--公共准备"></a>
 ## 公共准备
@@ -26,7 +28,7 @@
   "mcpServers": {
     "cloudbase_html": {
       "command": "npx",
-      "args": ["-y", "cloudbase-html-mcp@0.4.0-beta.6", "serve"]
+      "args": ["-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
     }
   }
 }
@@ -39,7 +41,7 @@
   "mcpServers": {
     "cloudbase_html": {
       "command": "cmd.exe",
-      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.4.0-beta.6", "serve"]
+      "args": ["/d", "/c", "npx", "-y", "cloudbase-html-mcp@0.5.0-beta.1", "serve"]
     }
   }
 }
@@ -68,27 +70,27 @@
 macOS 完整命令：
 
 ```sh
-npx -y cloudbase-html-mcp@0.4.0-beta.6 serve
+npx -y cloudbase-html-mcp@0.5.0-beta.1 serve
 ```
 
 Windows 完整命令：
 
 ```text
-cmd.exe /d /c npx -y cloudbase-html-mcp@0.4.0-beta.6 serve
+cmd.exe /d /c npx -y cloudbase-html-mcp@0.5.0-beta.1 serve
 ```
 
 如果界面将命令和参数分开填写：
 
 | 系统 | 命令 | 参数，每项单独填写 |
 | --- | --- | --- |
-| macOS | `npx` | `-y`、`cloudbase-html-mcp@0.4.0-beta.6`、`serve` |
-| Windows | `cmd.exe` | `/d`、`/c`、`npx`、`-y`、`cloudbase-html-mcp@0.4.0-beta.6`、`serve` |
+| macOS | `npx` | `-y`、`cloudbase-html-mcp@0.5.0-beta.1`、`serve` |
+| Windows | `cmd.exe` | `/d`、`/c`、`npx`、`-y`、`cloudbase-html-mcp@0.5.0-beta.1`、`serve` |
 
 服务名称填 `cloudbase_html`，传输类型选 STDIO，环境变量留空。界面明确使用“秒”且覆盖连接或工具调用时，可设置 180 秒；毫秒字段不能直接填 180。没有文档依据时，不自行添加客户端 JSON 超时字段。
 
 图形界面找不到 `npx` 时，查明它在本机的真实安装位置，使用实际绝对路径，参数继续分开填写。Windows 的 `.cmd` 启动器保留 `cmd.exe` 包装，必要时填写实际系统程序路径。不要照搬其他人的用户名或安装路径。
 
-从旧版升级时，将连接器命令或 JSON 中的包版本改为 `0.4.0-beta.6`，保存并重载 MCP；无需移动凭据或站点登记。升级本身不会发布、恢复或下线任何站点。
+从旧版升级时，将连接器命令或 JSON 中的包版本改为本页示例的固定版本，保存并重载 MCP；无需移动凭据或站点登记。升级本身不会发布、恢复或下线任何站点。
 
 <a id="client-specific-entry-points--各客户端入口"></a>
 ## 各客户端入口
